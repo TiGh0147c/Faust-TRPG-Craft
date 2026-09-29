@@ -1,0 +1,182 @@
+[
+  {
+    "id": "example-table",
+    "name": "城市夜间事件",
+    "description": "夜间城市随机事件",
+    "category": "event",
+    "tags": ["城市", "夜晚"],
+    "mode": "range",
+    "entries": [
+      { "id": "example-table-1-20", "text": "平静无事", "min": 1, "max": 20 },
+      { "id": "example-table-21-40", "text": "遇到陌生行人", "min": 21, "max": 40 },
+      { "id": "example-table-41-60", "text": "发现可疑踪迹", "min": 41, "max": 60 },
+      {
+        "id": "example-table-61-80",
+        "text": "遭遇突发事件",
+        "min": 61,
+        "max": 80,
+        "entryId": "example-entry"
+      },
+      { "id": "example-table-81-95", "text": "危险出现", "min": 81, "max": 95 },
+      { "id": "example-table-96-100", "text": "特殊事件", "min": 96, "max": 100 }
+    ]
+  },
+  {
+    "id": "npc-profession",
+    "name": "职业",
+    "description": "NPC 可能从事的工作",
+    "category": "npc",
+    "tags": ["人物"],
+    "mode": "uniform",
+    "entries": [
+      { "id": "npc-profession-guard", "text": "市集守卫" },
+      { "id": "npc-profession-boat", "text": "夜航船夫" },
+      { "id": "npc-profession-musician", "text": "流浪乐师" },
+      { "id": "npc-profession-archivist", "text": "档案管理员" },
+      { "id": "npc-profession-apprentice", "text": "药剂学徒" },
+      { "id": "npc-profession-mercenary", "text": "退役佣兵" }
+    ]
+  },
+  {
+    "id": "npc-personality",
+    "name": "性格",
+    "description": "NPC 给人的第一印象",
+    "category": "npc",
+    "tags": ["人物"],
+    "mode": "uniform",
+    "entries": [
+      { "id": "npc-personality-careful", "text": "谨慎" },
+      { "id": "npc-personality-suspicious", "text": "多疑" },
+      { "id": "npc-personality-warm", "text": "热心" },
+      { "id": "npc-personality-quiet", "text": "沉默" },
+      { "id": "npc-personality-impatient", "text": "急躁" },
+      { "id": "npc-personality-mild", "text": "温和" }
+    ]
+  },
+  {
+    "id": "npc-appearance",
+    "name": "外貌",
+    "description": "NPC 身上最容易被注意到的地方",
+    "category": "npc",
+    "tags": ["人物"],
+    "mode": "uniform",
+    "entries": [
+      { "id": "npc-appearance-scar", "text": "左眼有一道旧疤" },
+      { "id": "npc-appearance-mud", "text": "外套上沾着雨水泥点" },
+      { "id": "npc-appearance-ink", "text": "手指染着墨水" },
+      { "id": "npc-appearance-rings", "text": "头发用铜环束起" },
+      { "id": "npc-appearance-limp", "text": "走路时略微跛脚" },
+      { "id": "npc-appearance-glasses", "text": "戴一副裂纹眼镜" }
+    ]
+  },
+  {
+    "id": "npc-motive",
+    "name": "动机",
+    "description": "NPC 此刻最想做成的事",
+    "category": "npc",
+    "tags": ["人物"],
+    "mode": "uniform",
+    "entries": [
+      { "id": "npc-motive-family", "text": "寻找失散的亲人" },
+      { "id": "npc-motive-debt", "text": "偿还一笔旧债" },
+      { "id": "npc-motive-secret", "text": "保护某个秘密" },
+      { "id": "npc-motive-leave", "text": "离开这座城市" },
+      { "id": "npc-motive-missing", "text": "查明昨晚的失踪" },
+      { "id": "npc-motive-fare", "text": "赚够下一趟路费" }
+    ]
+  },
+  {
+    "id": "npc-trait",
+    "name": "特征",
+    "description": "NPC 一个容易被记住的习惯",
+    "category": "npc",
+    "tags": ["人物"],
+    "mode": "uniform",
+    "entries": [
+      { "id": "npc-trait-ledger", "text": "随身带着一本湿掉的账册" },
+      { "id": "npc-trait-door", "text": "说话时会先看向门口" },
+      { "id": "npc-trait-coin", "text": "口袋里总有一枚旧铜币" },
+      { "id": "npc-trait-name", "text": "拒绝透露真实姓名" },
+      { "id": "npc-trait-rain", "text": "能分辨三种雨的气味" },
+      { "id": "npc-trait-glove", "text": "右手戴着不相配的手套" }
+    ]
+  },
+  {
+    "id": "night-weather",
+    "name": "天气",
+    "description": "夜间城市的天气",
+    "category": "event",
+    "tags": ["城市", "夜晚"],
+    "mode": "range",
+    "entries": [
+      { "id": "night-weather-1", "text": "晴冷", "min": 1, "max": 1 },
+      { "id": "night-weather-2", "text": "薄雾", "min": 2, "max": 2 },
+      { "id": "night-weather-3", "text": "小雨", "min": 3, "max": 4 },
+      { "id": "night-weather-5", "text": "大风", "min": 5, "max": 5 },
+      { "id": "night-weather-6", "text": "雷雨", "min": 6, "max": 6 }
+    ]
+  },
+  {
+    "id": "night-location",
+    "name": "地点",
+    "description": "夜间城市里会发生事情的地方",
+    "category": "event",
+    "tags": ["城市", "夜晚"],
+    "mode": "uniform",
+    "entries": [
+      { "id": "night-location-market", "text": "废弃市场" },
+      { "id": "night-location-dock", "text": "河岸栈桥" },
+      { "id": "night-location-alley", "text": "窄巷" },
+      { "id": "night-location-square", "text": "钟楼广场" },
+      { "id": "night-location-theatre", "text": "关闭的剧院" },
+      { "id": "night-location-bridge", "text": "高架桥下" }
+    ]
+  },
+  {
+    "id": "night-encounter",
+    "name": "遭遇",
+    "description": "夜里首先碰上的情况",
+    "category": "event",
+    "tags": ["城市", "夜晚"],
+    "mode": "uniform",
+    "entries": [
+      { "id": "night-encounter-stranger", "text": "陌生人拦路" },
+      { "id": "night-encounter-steps", "text": "远处传来脚步" },
+      { "id": "night-encounter-door", "text": "一扇门自己打开" },
+      { "id": "night-encounter-patrol", "text": "巡逻队经过" },
+      { "id": "night-encounter-deal", "text": "有人在低声交易" },
+      { "id": "night-encounter-blood", "text": "地上有新鲜的血迹" }
+    ]
+  },
+  {
+    "id": "night-intensity",
+    "name": "强度",
+    "description": "这次遭遇有多紧",
+    "category": "event",
+    "tags": ["城市", "夜晚"],
+    "mode": "range",
+    "entries": [
+      { "id": "night-intensity-1", "text": "平静", "min": 1, "max": 1 },
+      { "id": "night-intensity-2", "text": "寻常", "min": 2, "max": 2 },
+      { "id": "night-intensity-3", "text": "紧张", "min": 3, "max": 4 },
+      { "id": "night-intensity-5", "text": "危险", "min": 5, "max": 5 },
+      { "id": "night-intensity-6", "text": "失控", "min": 6, "max": 6 }
+    ]
+  },
+  {
+    "id": "night-special",
+    "name": "特殊情况",
+    "description": "遭遇之外多出来的一件事",
+    "category": "event",
+    "tags": ["城市", "夜晚"],
+    "mode": "uniform",
+    "entries": [
+      { "id": "night-special-passage", "text": "发现一条隐藏通道" },
+      { "id": "night-special-lights", "text": "灯火忽然全灭" },
+      { "id": "night-special-child", "text": "一名孩子在求助" },
+      { "id": "night-special-smoke", "text": "空气里有燃烧的气味" },
+      { "id": "night-special-writing", "text": "墙上新出现一行字" },
+      { "id": "night-special-none", "text": "没有额外的异常" }
+    ]
+  }
+]

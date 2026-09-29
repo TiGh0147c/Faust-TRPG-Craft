@@ -1,0 +1,8 @@
+export { drawTable } from "./drawTable.ts"
+export { filterTables } from "./filterTables.ts"
+export type { TableQuery } from "./filterTables.ts"
+export { formatTableResult } from "./formatTableResult.ts"
+export { matchTableByValue, matchTableInput } from "./matchTable.ts"
+export { parseRandomTables } from "./parseRandomTables.ts"
+export type { ParseTablesOutcome } from "./parseRandomTables.ts"
+export type { TableRollOutcome } from "./result.ts"

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "example-entry",
+    "name": "异常踪迹",
+    "content": "在街角发现异常踪迹",
+    "category": "event",
+    "tags": ["城市", "探索"],
+    "weight": 1
+  }
+]

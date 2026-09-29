@@ -1,0 +1,32 @@
+[
+  {
+    "id": "generator-npc",
+    "name": "NPC",
+    "description": "把职业、性格、外貌、动机和特征组成一个人物。",
+    "category": "npc",
+    "tags": ["人物"],
+    "steps": [
+      { "id": "profession", "label": "职业", "tableId": "npc-profession", "variable": "profession" },
+      { "id": "personality", "label": "性格", "tableId": "npc-personality", "variable": "personality" },
+      { "id": "appearance", "label": "外貌", "tableId": "npc-appearance", "variable": "appearance" },
+      { "id": "motive", "label": "动机", "tableId": "npc-motive", "variable": "motive" },
+      { "id": "trait", "label": "特征", "tableId": "npc-trait", "variable": "trait" }
+    ],
+    "template": "{{profession}}，{{personality}}。{{appearance}}。动机是{{motive}}。{{trait}}"
+  },
+  {
+    "id": "generator-night-city",
+    "name": "夜间城市事件",
+    "description": "把天气、地点、遭遇、强度和特殊情况组成一段夜间遭遇。",
+    "category": "event",
+    "tags": ["城市", "夜晚"],
+    "steps": [
+      { "id": "weather", "label": "天气", "tableId": "night-weather", "variable": "weather", "expression": "1d6" },
+      { "id": "location", "label": "地点", "tableId": "night-location", "variable": "location" },
+      { "id": "encounter", "label": "遭遇", "tableId": "night-encounter", "variable": "encounter" },
+      { "id": "intensity", "label": "强度", "tableId": "night-intensity", "variable": "intensity", "expression": "1d6" },
+      { "id": "special", "label": "特殊情况", "tableId": "night-special", "variable": "special" }
+    ],
+    "template": "天气：{{weather}}\n地点：{{location}}\n遭遇：{{encounter}}\n强度：{{intensity}}\n特殊情况：{{special}}"
+  }
+]
