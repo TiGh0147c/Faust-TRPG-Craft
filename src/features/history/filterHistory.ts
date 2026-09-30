@@ -5,6 +5,8 @@ export const HISTORY_KIND_LABEL: Record<HistoryKind, string> = {
   table: "随机表",
   pipeline: "链路",
   generator: "生成器",
+  entry: "词条",
+  collection: "集合",
 }
 
 export function filterHistory(
@@ -16,7 +18,7 @@ export function filterHistory(
     if (query.favoritesOnly && !record.favorite) return false
     if (query.kind !== "" && record.kind !== query.kind) return false
     if (keyword === "") return true
-    return `${record.input}\n${record.output}`.toLowerCase().includes(keyword)
+    return `${record.input}\n${record.output}\n${record.note ?? ""}`.toLowerCase().includes(keyword)
   })
 }
 

@@ -14,8 +14,7 @@ type RowState = {
 
 const MODES: Array<{ value: TableMode; label: string }> = [
   { value: "range", label: "数值区间" },
-  { value: "weight", label: "权重" },
-  { value: "uniform", label: "等概率" },
+  { value: "collection", label: "集合" },
 ]
 
 export function TableEditor({
@@ -150,7 +149,7 @@ export function TableEditor({
               </label>
             </div>
           ) : null}
-          {mode === "weight" ? (
+          {mode === "collection" ? (
             <label className="field" htmlFor={`edit-row-weight-${index}`}>
               权重
               <input

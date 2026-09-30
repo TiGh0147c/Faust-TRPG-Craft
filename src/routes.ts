@@ -13,24 +13,24 @@ export const appRoutes: AppRoute[] = [
     end: true,
   },
   {
-    path: "/pipeline",
-    label: "链路",
-    description: "选表后投骰或填入数值，匹配区间并带出词条。",
-  },
-  {
     path: "/dice",
     label: "骰子",
     description: "投掷常见骰子和简单表达式。",
   },
   {
-    path: "/tables",
-    label: "随机表",
-    description: "按数值范围或权重抽取一条结果。",
+    path: "/collections",
+    label: "集合",
+    description: "打乱数值区间或自定义集合，并按次数上限抽取。",
   },
   {
     path: "/entries",
     label: "词条",
     description: "查找、筛选，并与随机表结果关联。",
+  },
+  {
+    path: "/tables",
+    label: "随机表",
+    description: "数值区间表按数值抽取，集合表按权重排序和抽取。",
   },
   {
     path: "/generators",

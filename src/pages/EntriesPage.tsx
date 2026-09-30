@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
+import { HistoryNoteField } from "../components/HistoryNoteField.tsx"
 import { SourceColumn } from "../components/SourceColumn.tsx"
 import { EntryEditor } from "../features/entries/EntryEditor.tsx"
+import { entryHistoryDraft } from "../features/history/historyDrafts.ts"
 import { useEntries } from "../features/entries/useEntries.ts"
 import { RecordTransferButtons } from "../features/storage/RecordTransferButtons.tsx"
 import { useCatalog } from "../features/storage/useCatalog.ts"
@@ -15,11 +17,23 @@ export function EntriesPage() {
   const [editor, setEditor] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [note, setNote] = useState("")
+  const [historyError, setHistoryError] = useState<string | null>(null)
 
   function run(action: () => void) {
     setCopied(false)
     setCopyError(null)
     action()
+  }
+
+  async function drawAndRecord() {
+    setCopied(false)
+    setCopyError(null)
+    setHistoryError(null)
+    const outcome = entries.drawFiltered()
+    if (!outcome.ok) return
+    const saved = await catalog.recordHistory(entryHistoryDraft(outcome.entry, note))
+    if (!saved.ok) setHistoryError(saved.message)
   }
 
   useEffect(() => {
@@ -118,10 +132,16 @@ export function EntriesPage() {
             ))}
           </select>
         </label>
-        <button className="button" type="button" onClick={() => run(() => entries.drawFiltered())}>
+        <HistoryNoteField id="entry-note" value={note} onChange={setNote} />
+        <button className="button" type="button" onClick={() => void drawAndRecord()}>
           随机抽取
         </button>
       </div>
+      {historyError ? (
+        <p className="form-error" role="alert">
+          没有写入历史。{historyError}
+        </p>
+      ) : null}
 
       {entries.actionError ? (
         <p className="form-error" role="alert">

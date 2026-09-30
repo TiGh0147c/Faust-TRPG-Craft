@@ -17,7 +17,7 @@ const weightTable = {
   description: "",
   category: "test",
   tags: [],
-  mode: "weight",
+  mode: "collection",
   entries: [
     { id: "first", text: "先", weight: 1 },
     { id: "second", text: "后", weight: 1 },
@@ -106,8 +106,8 @@ describe("runGenerator", () => {
       description: "",
       category: "test",
       tags: [],
-      mode: "uniform",
-      entries: [{ id: "row", text: "表项原文", entryId: exampleEntry.id }],
+      mode: "collection",
+      entries: [{ id: "row", text: "表项原文", entryId: exampleEntry.id, weight: 1 }],
     } satisfies RandomTable
     const found = runGenerator(
       generator([{ id: "one", label: "关联", tableId: "linked", variable: "item" }]),
@@ -121,7 +121,7 @@ describe("runGenerator", () => {
 
     const missing = runGenerator(
       generator([{ id: "one", label: "关联", tableId: "linked", variable: "item" }]),
-      [{ ...linkedTable, entries: [{ id: "row", text: "表项原文", entryId: "missing" }] }],
+      [{ ...linkedTable, entries: [{ id: "row", text: "表项原文", entryId: "missing", weight: 1 }] }],
       [],
       () => 0,
     )

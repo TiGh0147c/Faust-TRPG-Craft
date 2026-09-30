@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { DiceRollResult } from "../../types/dice.ts"
-import { expressionWithSides, formatDiceExpression, parseDiceExpression, rollDice } from "../../utils/dice/index.ts"
+import { composeDiceExpression, expressionWithSides, formatDiceExpression, parseDiceExpression, rollDice } from "../../utils/dice/index.ts"
 
 export function useDiceRoll(initialExpression = "1d20") {
   const initial = parseDiceExpression(initialExpression)
@@ -75,30 +75,13 @@ export function useDiceRoll(initialExpression = "1d20") {
   }
 
   function rollFields() {
-    const sides = customSides.trim()
-    const count = customCount.trim()
-    const modifier = customModifier.trim()
-    if (!/^\d+$/.test(sides)) {
-      const message = sides === "" ? "请输入面数。" : "面数需要是整数。"
+    const composed = composeDiceExpression(customCount, customSides, customModifier)
+    if (!composed.ok) {
       setResult(null)
-      setError(message)
-      return { ok: false as const, message }
+      setError(composed.message)
+      return composed
     }
-    if (!/^\d+$/.test(count)) {
-      const message = count === "" ? "请输入颗数。" : "颗数需要是整数。"
-      setResult(null)
-      setError(message)
-      return { ok: false as const, message }
-    }
-    if (!/^-?\d+$/.test(modifier)) {
-      const message = modifier === "" ? "请输入数值补正。" : "数值补正需要是整数。"
-      setResult(null)
-      setError(message)
-      return { ok: false as const, message }
-    }
-    return rollInput(
-      formatDiceExpression({ count: Number(count), sides: Number(sides), modifier: Number(modifier) }),
-    )
+    return rollInput(composed.expression)
   }
 
   return {

@@ -13,14 +13,7 @@ export function drawTable(
     return { ok: false, message: "这张表没有可抽取的项目。" }
   }
 
-  if (table.mode === "uniform") {
-    const index = randomIndex(table.entries.length, random)
-    const entry = table.entries[index]
-    if (!entry) return { ok: false, message: "这张表没有可抽取的项目。" }
-    return { ok: true, result: toTableRollResult(table, entry) }
-  }
-
-  if (table.mode === "weight") {
+  if (table.mode === "collection") {
     if (table.entries.some((entry) => !Number.isFinite(entry.weight) || entry.weight <= 0)) {
       return { ok: false, message: "权重必须大于 0。" }
     }

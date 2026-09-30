@@ -3,13 +3,13 @@ export type { Entry } from "./entry.ts"
 export type { Generator, GeneratorStep } from "./generator.ts"
 export type { FavoriteRecord, HistoryKind, HistoryRecord } from "./history.ts"
 export type {
+  CollectionTableEntry,
   RandomTable,
   RangeTableEntry,
-  TableRollResult,
   TableEntry,
   TableMode,
-  UniformTableEntry,
-  WeightTableEntry,
+  TableRollResult,
+  TableSequenceResult,
 } from "./table.ts"
 export {
   APP_ID,

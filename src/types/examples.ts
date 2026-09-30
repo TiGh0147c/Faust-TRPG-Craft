@@ -42,7 +42,7 @@ export const exampleWeightTable = {
   description: "确认权重模式的字段",
   category: "example",
   tags: ["示例"],
-  mode: "weight",
+  mode: "collection",
   entries: [
     { id: "example-weight-common", text: "常见", weight: 3 },
     { id: "example-weight-rare", text: "少见", weight: 1 },
@@ -55,10 +55,10 @@ export const exampleUniformTable = {
   description: "确认等概率模式的字段",
   category: "example",
   tags: ["示例"],
-  mode: "uniform",
+  mode: "collection",
   entries: [
-    { id: "example-uniform-a", text: "结果 A" },
-    { id: "example-uniform-b", text: "结果 B" },
+    { id: "example-uniform-a", text: "结果 A", weight: 1 },
+    { id: "example-uniform-b", text: "结果 B", weight: 1 },
   ],
 } satisfies RandomTable
 

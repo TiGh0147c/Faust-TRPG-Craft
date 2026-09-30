@@ -200,11 +200,9 @@ function buildTable(draft: TableDraft, id: string): { ok: true; table: RandomTab
       }
       if (row.min > row.max) return { ok: false, message: "区间的最小值不能大于最大值。" }
       rows.push({ ...base, min: row.min, max: row.max })
-    } else if (draft.mode === "weight") {
+    } else {
       if (!Number.isFinite(row.weight) || row.weight <= 0) return { ok: false, message: "权重必须大于 0。" }
       rows.push({ ...base, weight: row.weight })
-    } else {
-      rows.push(base)
     }
   }
 

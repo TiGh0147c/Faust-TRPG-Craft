@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
+import { DiceBreakdown } from "../components/DiceBreakdown.tsx"
+import { HistoryNoteField } from "../components/HistoryNoteField.tsx"
 import { diceHistoryDraft } from "../features/history/historyDrafts.ts"
 import { useDiceRoll } from "../features/dice/useDiceRoll.ts"
 import { useCatalog } from "../features/storage/useCatalog.ts"
-import { formatDiceResult, formatModifier, MAX_DIE_SIDES } from "../utils/dice/index.ts"
+import { formatDiceResult, MAX_DIE_SIDES } from "../utils/dice/index.ts"
 
 const PRESET_SIDES = [2, 4, 6, 8, 10, 12, 20, 100]
 
@@ -12,6 +14,7 @@ export function DicePage() {
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
+  const [note, setNote] = useState("")
 
   async function roll(action: () => ReturnType<typeof dice.rollExpression>) {
     setCopied(false)
@@ -19,7 +22,7 @@ export function DicePage() {
     setHistoryError(null)
     const outcome = action()
     if (!outcome.ok) return
-    const saved = await catalog.recordHistory(diceHistoryDraft(outcome.result))
+    const saved = await catalog.recordHistory(diceHistoryDraft(outcome.result, note))
     if (!saved.ok) setHistoryError(saved.message)
   }
 
@@ -44,10 +47,12 @@ export function DicePage() {
   return (
     <section className="page">
       <h1>骰子</h1>
-      <p className="lead">可以输入表达式，也可以填写面数、颗数和数值补正。常用骰子只替换表达式里的面数。成功的投掷会写入历史。</p>
+      <p className="lead">可以输入表达式，也可以填写面数、颗数和数值补正。常用骰子只替换表达式里的面数。备注可选，留空则不会出现在历史里。成功的投掷会写入历史。</p>
+
+      <HistoryNoteField className="note-row" id="dice-note" value={note} onChange={setNote} />
 
       <form
-        className="inline-form"
+        className="stacked-form"
         onSubmit={(event) => {
           event.preventDefault()
           void roll(() => dice.rollExpression())
@@ -63,52 +68,42 @@ export function DicePage() {
             onChange={(event) => dice.setExpression(event.target.value)}
           />
         </label>
+        <div className="inline-form expression-fields">
+          <label className="field" htmlFor="custom-sides">
+            自定义面数
+            <input
+              id="custom-sides"
+              type="number"
+              inputMode="numeric"
+              min={2}
+              max={MAX_DIE_SIDES}
+              value={dice.customSides}
+              onChange={(event) => dice.setCustomSides(event.target.value)}
+            />
+          </label>
+          <label className="field" htmlFor="custom-count">
+            投掷颗数
+            <input
+              id="custom-count"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={dice.customCount}
+              onChange={(event) => dice.setCustomCount(event.target.value)}
+            />
+          </label>
+          <label className="field" htmlFor="custom-modifier">
+            数值补正
+            <input
+              id="custom-modifier"
+              type="number"
+              inputMode="numeric"
+              value={dice.customModifier}
+              onChange={(event) => dice.setCustomModifier(event.target.value)}
+            />
+          </label>
+        </div>
         <button className="button" type="submit">
-          投掷
-        </button>
-      </form>
-
-      <form
-        className="inline-form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void roll(() => dice.rollFields())
-        }}
-      >
-        <label className="field" htmlFor="custom-sides">
-          自定义面数
-          <input
-            id="custom-sides"
-            type="number"
-            inputMode="numeric"
-            min={2}
-            max={MAX_DIE_SIDES}
-            value={dice.customSides}
-            onChange={(event) => dice.setCustomSides(event.target.value)}
-          />
-        </label>
-        <label className="field" htmlFor="custom-count">
-          投掷颗数
-          <input
-            id="custom-count"
-            type="number"
-            inputMode="numeric"
-            min={1}
-            value={dice.customCount}
-            onChange={(event) => dice.setCustomCount(event.target.value)}
-          />
-        </label>
-        <label className="field" htmlFor="custom-modifier">
-          数值补正
-          <input
-            id="custom-modifier"
-            type="number"
-            inputMode="numeric"
-            value={dice.customModifier}
-            onChange={(event) => dice.setCustomModifier(event.target.value)}
-          />
-        </label>
-        <button className="button button-secondary" type="submit">
           投掷
         </button>
       </form>
@@ -148,25 +143,7 @@ export function DicePage() {
             </button>
           </div>
           {copyError ? <p className="form-error">{copyError}</p> : null}
-          <p className="dice-expression">{dice.result.expression}</p>
-          <h3 className="section-label">每颗骰子</h3>
-          <ul className="dice-rolls">
-            {dice.result.rolls.map((die, index) => (
-              <li key={`${die.sides}-${index}`} title={`d${die.sides}`}>
-                {die.value}
-              </li>
-            ))}
-          </ul>
-          <dl className="dice-meta">
-            <div>
-              <dt>基础总值</dt>
-              <dd>{dice.result.subtotal}</dd>
-            </div>
-            <div>
-              <dt>修正值</dt>
-              <dd>{formatModifier(dice.result.modifier)}</dd>
-            </div>
-          </dl>
+          <DiceBreakdown result={dice.result} />
         </section>
       ) : dice.error ? null : (
         <p className="note">输入表达式，或填写面数、颗数和数值补正。</p>

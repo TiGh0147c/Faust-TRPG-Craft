@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
+import { DiceBreakdown } from "../components/DiceBreakdown.tsx"
+import { HistoryNoteField } from "../components/HistoryNoteField.tsx"
 import { SourceColumn } from "../components/SourceColumn.tsx"
 import { GeneratorEditor } from "../features/generators/GeneratorEditor.tsx"
 import { generatorHistoryDraft } from "../features/history/historyDrafts.ts"
 import { useGenerators } from "../features/generators/useGenerators.ts"
-import type { GeneratorStepResult } from "../features/generators/runGenerator.ts"
 import { RecordTransferButtons } from "../features/storage/RecordTransferButtons.tsx"
 import { useCatalog } from "../features/storage/useCatalog.ts"
 import type { GeneratorDraft } from "../services/storage/mutateUserData.ts"
@@ -17,6 +18,7 @@ export function GeneratorsPage() {
   const [editor, setEditor] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [note, setNote] = useState("")
   const selected = generators.selected
   const result = generators.result
 
@@ -73,14 +75,14 @@ export function GeneratorsPage() {
     setHistoryError(null)
     const outcome = generators.generate()
     if (!outcome || !outcome.ok) return
-    const saved = await catalog.recordHistory(generatorHistoryDraft(outcome.result))
+    const saved = await catalog.recordHistory(generatorHistoryDraft(outcome.result, note))
     if (!saved.ok) setHistoryError(saved.message)
   }
 
   async function copyResult() {
     if (!result) return
     try {
-      await navigator.clipboard.writeText(result.output)
+      await navigator.clipboard.writeText(generatorHistoryDraft(result).output)
       setCopyError(null)
       setCopied(true)
     } catch {
@@ -230,9 +232,18 @@ export function GeneratorsPage() {
                   </li>
                 ))}
               </ul>
-              <button className="button generator-run" type="button" onClick={() => void generate()}>
-                生成
-              </button>
+              <form
+                className="inline-form"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void generate()
+                }}
+              >
+                <HistoryNoteField id="generator-note" value={note} onChange={setNote} />
+                <button className="button generator-run" type="submit">
+                  生成
+                </button>
+              </form>
               {generators.actionError ? (
                 <p className="form-error" role="alert">
                   {generators.actionError}
@@ -252,7 +263,12 @@ export function GeneratorsPage() {
                     {result.steps.map((step) => (
                       <li key={step.stepId}>
                         <span>{step.label}</span>
-                        <span>{stepLine(step)}</span>
+                        <span>{step.text}</span>
+                        {step.dice ? (
+                          <div className="step-dice">
+                            <DiceBreakdown result={step.dice} />
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -278,7 +294,3 @@ function GeneratorTransfer({ generatorId }: { generatorId: string }) {
   return <RecordTransferButtons scope="generators" record={generator} />
 }
 
-function stepLine(step: GeneratorStepResult): string {
-  if (step.expression && step.total !== undefined) return `${step.text}（${step.expression} → ${step.total}）`
-  return step.text
-}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { DiceBreakdown } from "../components/DiceBreakdown.tsx"
 import { ImportFileButton } from "../features/storage/ImportFileButton.tsx"
 import { downloadJson } from "../features/storage/downloadJson.ts"
 import { filterHistory, formatHistoryTime, HISTORY_KIND_LABEL } from "../features/history/filterHistory.ts"
@@ -7,7 +8,8 @@ import { describeImport, exportHistoryMerge, exportHistorySnapshot, transferFile
 import type { HistoryKind, HistoryRecord } from "../types/history.ts"
 import type { TransferEnvelope } from "../types/transfer.ts"
 
-const KIND_OPTIONS: Array<HistoryKind | ""> = ["", "dice", "table", "pipeline", "generator"]
+const KIND_OPTIONS: Array<HistoryKind | ""> = ["", "dice", "table", "entry", "generator", "collection", "pipeline"]
+const PAGE_SIZES = [5, 10, 20, 50, 100] as const
 
 type HistoryPending = { kind: "import"; envelope: TransferEnvelope } | { kind: "delete"; ids: string[] } | { kind: "clear" }
 
@@ -23,18 +25,30 @@ export function HistoryPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [pending, setPending] = useState<HistoryPending | null>(null)
   const [saving, setSaving] = useState(false)
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(20)
+  const [page, setPage] = useState(1)
   const filterKey = `${keyword}\0${kind}\0${String(favoritesOnly)}`
   const [trackedFilter, setTrackedFilter] = useState(filterKey)
   if (trackedFilter !== filterKey) {
     setTrackedFilter(filterKey)
     setSelectedIds([])
     setPending(null)
+    setPage(1)
+  }
+  const sizeKey = String(pageSize)
+  const [trackedSize, setTrackedSize] = useState(sizeKey)
+  if (trackedSize !== sizeKey) {
+    setTrackedSize(sizeKey)
+    setPage(1)
   }
 
   const filtered = useMemo(
     () => filterHistory(catalog.user.history, { keyword, kind, favoritesOnly }),
     [catalog.user.history, keyword, kind, favoritesOnly],
   )
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const currentPage = Math.min(page, pageCount)
+  const pageRecords = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   useEffect(() => {
     if (!copiedId) return
@@ -45,7 +59,8 @@ export function HistoryPage() {
   async function copyRecord(record: HistoryRecord) {
     setCopyError(null)
     try {
-      await navigator.clipboard.writeText(record.output)
+      const text = record.note ? `${record.output}\n备注：${record.note}` : record.output
+      await navigator.clipboard.writeText(text)
       setCopiedId(record.id)
     } catch {
       setCopiedId(null)
@@ -141,7 +156,7 @@ export function HistoryPage() {
   return (
     <section className="page">
       <h1>历史</h1>
-      <p className="lead">查看最近的骰子、抽表、链路和生成结果。可以复选后批量删除或导出。清空历史不会删除用户词条和随机表。</p>
+      <p className="lead">查看最近的骰子、抽表、词条、生成和集合结果。有备注的记录会显示备注。可以复选后批量删除或导出。</p>
 
       {catalog.status === "loading" ? <p className="note">正在读取历史…</p> : null}
       {catalog.loadError ? (
@@ -232,13 +247,24 @@ export function HistoryPage() {
             <ConfirmHistory pending={pending} user={catalog.user} saving={saving} onConfirm={() => void confirmPending()} onCancel={() => setPending(null)} />
           ) : null}
 
+          {filtered.length > 0 ? (
+            <HistoryPager
+              id="history-page-size-top"
+              page={currentPage}
+              pageCount={pageCount}
+              pageSize={pageSize}
+              onPage={setPage}
+              onPageSize={setPageSize}
+            />
+          ) : null}
+
           {catalog.user.history.length === 0 ? (
             <p className="note">还没有历史记录。</p>
           ) : filtered.length === 0 ? (
             <p className="note">没有符合条件的历史记录。</p>
           ) : (
             <ul className="history-list">
-              {filtered.map((record) => (
+              {pageRecords.map((record) => (
                 <li key={record.id}>
                   <div className="history-row">
                     <input
@@ -270,13 +296,26 @@ export function HistoryPage() {
                         </div>
                       </div>
                       <p className="table-meta">输入：{record.input}</p>
+                      {record.note ? <p className="table-meta">备注：{record.note}</p> : null}
                       <p className="history-output">{record.output}</p>
+                      {record.diceResult ? <DiceBreakdown result={record.diceResult} /> : null}
                     </div>
                   </div>
                 </li>
               ))}
             </ul>
           )}
+
+          {filtered.length > 0 ? (
+            <HistoryPager
+              id="history-page-size-bottom"
+              page={currentPage}
+              pageCount={pageCount}
+              pageSize={pageSize}
+              onPage={setPage}
+              onPageSize={setPageSize}
+            />
+          ) : null}
 
           <h2 className="section-label">清空历史</h2>
           <p className="note">只删除历史记录，用户词条和随机表会保留。</p>
@@ -298,6 +337,50 @@ export function HistoryPage() {
         </>
       ) : null}
     </section>
+  )
+}
+
+function HistoryPager({
+  id,
+  page,
+  pageCount,
+  pageSize,
+  onPage,
+  onPageSize,
+}: {
+  id: string
+  page: number
+  pageCount: number
+  pageSize: number
+  onPage: (page: number) => void
+  onPageSize: (size: (typeof PAGE_SIZES)[number]) => void
+}) {
+  return (
+    <div className="history-pager">
+      <button className="button button-secondary" type="button" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        上一页
+      </button>
+      <span>
+        第 {page} / {pageCount} 页
+      </span>
+      <button className="button button-secondary" type="button" disabled={page >= pageCount} onClick={() => onPage(page + 1)}>
+        下一页
+      </button>
+      <label className="field" htmlFor={id}>
+        每页
+        <select
+          id={id}
+          value={pageSize}
+          onChange={(event) => onPageSize(Number(event.target.value) as (typeof PAGE_SIZES)[number])}
+        >
+          {PAGE_SIZES.map((size) => (
+            <option key={size} value={size}>
+              {size} 条
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   )
 }
 

@@ -1,4 +1,4 @@
-export type TableMode = "range" | "weight" | "uniform"
+export type TableMode = "range" | "collection"
 
 type TableEntryBase = {
   id: string
@@ -13,13 +13,12 @@ export type RangeTableEntry = TableEntryBase & {
   max: number
 }
 
-export type WeightTableEntry = TableEntryBase & {
+export type CollectionTableEntry = TableEntryBase & {
+  /** 默认 1。相同权重时每项机会相同。 */
   weight: number
 }
 
-export type UniformTableEntry = TableEntryBase
-
-export type TableEntry = RangeTableEntry | WeightTableEntry | UniformTableEntry
+export type TableEntry = RangeTableEntry | CollectionTableEntry
 
 type RandomTableBase = {
   id: string
@@ -32,8 +31,7 @@ type RandomTableBase = {
 export type RandomTable = RandomTableBase &
   (
     | { mode: "range"; entries: RangeTableEntry[] }
-    | { mode: "weight"; entries: WeightTableEntry[] }
-    | { mode: "uniform"; entries: UniformTableEntry[] }
+    | { mode: "collection"; entries: CollectionTableEntry[] }
   )
 
 export type TableRollResult = {
@@ -46,4 +44,14 @@ export type TableRollResult = {
   value?: number
   min?: number
   max?: number
+}
+
+export type TableSequenceResult = {
+  tableId: string
+  tableName: string
+  action: "order" | "draw"
+  rows: CollectionTableEntry[]
+  limit?: number
+  /** 随机排序只保留前若干项时填写。 */
+  prefix?: number
 }

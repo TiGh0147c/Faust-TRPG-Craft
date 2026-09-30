@@ -18,6 +18,7 @@ export type GeneratorStepResult = {
   value?: number
   expression?: string
   total?: number
+  dice?: DiceRollResult
 }
 
 export type GeneratorRunResult = {
@@ -62,6 +63,7 @@ export function runGenerator(
       recorded.value = drawn.dice.total
       recorded.expression = drawn.dice.expression
       recorded.total = drawn.dice.total
+      recorded.dice = drawn.dice
     }
     steps.push(recorded)
   }

@@ -4,7 +4,7 @@ export type GeneratorStep = {
   tableId: string
   /**
    * 随机表 mode 为 range 时使用的骰子表达式，例如 "1d100"。
-   * weight 和 uniform 不使用该字段。
+   * 集合表不使用该字段。
    */
   expression?: string
   /** 输出模板中的变量名，不含花括号。 */

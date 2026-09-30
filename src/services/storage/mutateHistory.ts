@@ -8,6 +8,7 @@ export type HistoryDraft = {
   input: string
   output: string
   diceResult?: DiceRollResult
+  note?: string
 }
 
 export function appendHistory(
@@ -29,6 +30,8 @@ export function appendHistory(
     favorite: false,
   }
   if (draft.diceResult) record.diceResult = draft.diceResult
+  const note = draft.note?.trim()
+  if (note) record.note = note
   return { ok: true, data: { ...user, history: [record, ...user.history] } }
 }
 

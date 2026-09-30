@@ -1,6 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react"
+import { DiceBreakdown } from "../components/DiceBreakdown.tsx"
+import { HistoryNoteField } from "../components/HistoryNoteField.tsx"
 import { SourceColumn } from "../components/SourceColumn.tsx"
-import { tableHistoryDraft } from "../features/history/historyDrafts.ts"
+import { useDiceRoll } from "../features/dice/useDiceRoll.ts"
+import { sequenceSummary, tableHistoryDraft, tableSequenceHistoryDraft } from "../features/history/historyDrafts.ts"
 import { RecordTransferButtons } from "../features/storage/RecordTransferButtons.tsx"
 import { useCatalog } from "../features/storage/useCatalog.ts"
 import { TableEditor } from "../features/tables/TableEditor.tsx"
@@ -8,12 +11,17 @@ import { useRandomTables } from "../features/tables/useRandomTables.ts"
 import type { TableDraft } from "../services/storage/mutateUserData.ts"
 import type { RandomTable } from "../types/table.ts"
 import { resolveLinkedEntry, type LinkedEntry } from "../utils/entry/index.ts"
-import { formatTableResult } from "../utils/table/index.ts"
+import { formatSequence, readOrderCount } from "../utils/collection/orderCollection.ts"
+import { MAX_DIE_SIDES, formatDiceResult } from "../utils/dice/index.ts"
+import { assignedRanges, formatAssignedSpan, formatTableResult } from "../utils/table/index.ts"
+import type { DiceRollResult } from "../types/dice.ts"
+import type { TableSequenceResult } from "../types/table.ts"
+
+type TableDrawMode = "match" | "random" | "expression"
 
 const MODE_LABEL = {
   range: "数值区间",
-  weight: "权重",
-  uniform: "等概率",
+  collection: "集合",
 } as const
 
 export function TablesPage() {
@@ -26,6 +34,7 @@ export function TablesPage() {
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
+  const [note, setNote] = useState("")
   const [editor, setEditor] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -77,7 +86,37 @@ export function TablesPage() {
     if (!outcome || !outcome.ok) return
     const linkedNow = resolveLinkedEntry(outcome.result.entryId, catalog.status === "ready" ? catalog.entries : null)
     const entry = linkedNow.status === "found" ? linkedNow.entry : undefined
-    const saved = await catalog.recordHistory(tableHistoryDraft(outcome.result, entry, source))
+    const saved = await catalog.recordHistory(tableHistoryDraft(outcome.result, entry, source, "", note))
+    if (!saved.ok) setHistoryError(saved.message)
+  }
+
+  async function recordExpression(expression: string) {
+    setCopied(false)
+    setCopyError(null)
+    setHistoryError(null)
+    const outcome = tables.rollExpressionSelected(expression)
+    if (!outcome || !outcome.ok) return
+    const linkedNow = resolveLinkedEntry(outcome.result.entryId, catalog.status === "ready" ? catalog.entries : null)
+    const entry = linkedNow.status === "found" ? linkedNow.entry : undefined
+    const saved = await catalog.recordHistory(
+      tableHistoryDraft(outcome.result, entry, "expression", outcome.dice.expression, note, outcome.dice),
+    )
+    if (!saved.ok) setHistoryError(saved.message)
+  }
+
+  async function recordSequence(
+    action: "order" | "draw",
+    ids: readonly string[],
+    count = "1",
+    limit = "1",
+    prefix?: number,
+  ) {
+    setCopied(false)
+    setCopyError(null)
+    setHistoryError(null)
+    const outcome = action === "order" ? tables.orderSelected(ids, prefix) : tables.drawRowsSelected(count, limit, ids)
+    if (!outcome || !outcome.ok) return
+    const saved = await catalog.recordHistory(tableSequenceHistoryDraft(outcome.result, note))
     if (!saved.ok) setHistoryError(saved.message)
   }
 
@@ -88,11 +127,18 @@ export function TablesPage() {
   }, [copied])
 
   async function copyResult() {
-    if (!tables.result) return
+    const sequence = tables.sequence
+    const rolled = tables.result
+    if (!sequence && !rolled) return
     try {
-      await navigator.clipboard.writeText(
-        formatTableResult(tables.result, linked.status === "found" ? linked.entry : undefined),
-      )
+      const text = sequence
+        ? formatSequence(sequenceSummary(sequence), sequence.rows.map((row) => row.text))
+        : rolled
+          ? tables.expressionDice
+            ? `${formatTableResult(rolled, linked.status === "found" ? linked.entry : undefined)}\n${formatDiceResult(tables.expressionDice)}`
+            : formatTableResult(rolled, linked.status === "found" ? linked.entry : undefined)
+          : ""
+      await navigator.clipboard.writeText(text)
       setCopyError(null)
       setCopied(true)
     } catch {
@@ -104,7 +150,9 @@ export function TablesPage() {
   return (
     <section className="page">
       <h1>随机表</h1>
-      <p className="lead">按数值区间、权重或等概率抽取结果。内置表只读，用户表可以在这里添加和修改。成功的结果会写入历史。</p>
+      <p className="lead">
+        数值区间表可以匹配、抽取，或用表达式投骰。集合表按权重排序和抽取，权重默认是 1。成功的结果会写入历史。
+      </p>
 
       <div className="filters">
         <label className="field" htmlFor="table-keyword">
@@ -215,7 +263,15 @@ export function TablesPage() {
                   </div>
                 ) : null
               }
+              key={tables.selected.id}
               table={tables.selected}
+              note={note}
+              onNote={setNote}
+              onExpression={(expression) => void recordExpression(expression)}
+              onOrder={(ids, prefix) => void recordSequence("order", ids, "1", "1", prefix)}
+              onDrawRows={(count, limit, ids) => void recordSequence("draw", ids, count, limit)}
+              expressionDice={tables.expressionDice}
+              sequence={tables.sequence}
               rangeInput={tables.rangeInput}
               onRangeInput={tables.setRangeInput}
               onMatch={() => void recordTable("match")}
@@ -245,6 +301,13 @@ type TableDetailProps = {
   actions?: ReactNode
   formError?: string | null
   table: RandomTable
+  note: string
+  onNote: (value: string) => void
+  onExpression: (expression: string) => void
+  onOrder: (ids: readonly string[], prefix?: number) => void
+  onDrawRows: (count: string, limit: string, ids: readonly string[]) => void
+  expressionDice: DiceRollResult | null
+  sequence: TableSequenceResult | null
   rangeInput: string
   onRangeInput: (value: string) => void
   onMatch: () => void
@@ -267,6 +330,13 @@ function TableDetail({
   actions,
   formError,
   table,
+  note,
+  onNote,
+  onExpression,
+  onOrder,
+  onDrawRows,
+  expressionDice,
+  sequence,
   rangeInput,
   onRangeInput,
   onMatch,
@@ -284,6 +354,25 @@ function TableDetail({
   entryLoadError,
   historyError,
 }: TableDetailProps) {
+  const dice = useDiceRoll()
+  const [mode, setMode] = useState<TableDrawMode | "">("")
+  const [drawCount, setDrawCount] = useState("1")
+  const [drawLimit, setDrawLimit] = useState("1")
+  const [orderMode, setOrderMode] = useState<"all" | "prefix">("all")
+  const [orderCount, setOrderCount] = useState("1")
+  const [orderError, setOrderError] = useState<string | null>(null)
+  const [included, setIncluded] = useState<string[]>(() =>
+    table.mode === "collection" ? table.entries.map((entry) => entry.id) : [],
+  )
+  const weightTotal = table.mode === "collection" ? table.entries.reduce((sum, entry) => sum + entry.weight, 0) : 0
+  const assigned = table.mode === "range" ? assignedRanges(table) : null
+  const matchedIds = new Set(sequence ? sequence.rows.map((row) => row.id) : resultRowId ? [resultRowId] : [])
+  const sequenceLabel = sequence ? sequenceSummary(sequence) : ""
+
+  function chooseMode(next: TableDrawMode) {
+    setMode(next)
+  }
+
   return (
     <article className="panel">
       <div className="panel-header">
@@ -300,16 +389,153 @@ function TableDetail({
         {MODE_LABEL[table.mode]} · {table.category}
         {table.tags.length > 0 ? ` · ${table.tags.join("、")}` : ""}
       </p>
-      <ul className="table-entry-list">
+      <ul className={table.mode === "collection" ? "table-entry-list weight-list" : "table-entry-list"}>
         {table.entries.map((entry) => (
-          <li key={entry.id} className={entry.id === resultRowId ? "is-match" : undefined}>
-            <span>{rowLabel(entry)}</span>
+          <li key={entry.id} className={matchedIds.has(entry.id) ? "is-match" : undefined}>
+            <span>{rowLabel(entry, weightTotal)}</span>
             <span>{entry.text}</span>
           </li>
         ))}
       </ul>
 
-      {table.mode === "range" ? (
+      {assigned && !assigned.ok ? <p className="note">{assigned.message}</p> : null}
+
+      {table.mode === "collection" ? (
+        <>
+          <HistoryNoteField className="note-row" id="table-note" value={note} onChange={onNote} />
+          <div className="choice-cards" role="group" aria-label="参与排序和抽取的项目">
+            {table.entries.map((entry) => (
+              <label key={entry.id} className={included.includes(entry.id) ? "choice-card is-selected" : "choice-card"}>
+                <input
+                  type="checkbox"
+                  checked={included.includes(entry.id)}
+                  onChange={() =>
+                    setIncluded((current) =>
+                      current.includes(entry.id) ? current.filter((id) => id !== entry.id) : [...current, entry.id],
+                    )
+                  }
+                />
+                <span>{entry.text}</span>
+              </label>
+            ))}
+          </div>
+          <div className="mode-choices" role="group" aria-label="排序方式">
+            <button
+              className="button button-secondary"
+              type="button"
+              aria-pressed={orderMode === "all"}
+              onClick={() => {
+                setOrderError(null)
+                setOrderMode("all")
+              }}
+            >
+              全随机排序
+            </button>
+            <button
+              className="button button-secondary"
+              type="button"
+              aria-pressed={orderMode === "prefix"}
+              onClick={() => setOrderMode("prefix")}
+            >
+              只输出前 n 个
+            </button>
+          </div>
+          <form
+            className="inline-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              if (orderMode === "all") {
+                setOrderError(null)
+                onOrder(included)
+                return
+              }
+              const parsed = readOrderCount(orderCount, included.length)
+              if (!parsed.ok) {
+                setOrderError(parsed.message)
+                return
+              }
+              setOrderError(null)
+              onOrder(included, parsed.value)
+            }}
+          >
+            {orderMode === "prefix" ? (
+              <label className="field" htmlFor="table-order-count">
+                输出个数
+                <input
+                  id="table-order-count"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={orderCount}
+                  onChange={(event) => setOrderCount(event.target.value)}
+                />
+              </label>
+            ) : null}
+            <button className="button" type="submit">
+              随机排序
+            </button>
+          </form>
+          {orderError ? (
+            <p className="form-error" role="alert">
+              {orderError}
+            </p>
+          ) : null}
+          <form
+            className="inline-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              onDrawRows(drawCount, drawLimit, included)
+            }}
+          >
+            <label className="field" htmlFor="table-draw-count">
+              抽取个数
+              <input
+                id="table-draw-count"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={drawCount}
+                onChange={(event) => setDrawCount(event.target.value)}
+              />
+            </label>
+            <label className="field" htmlFor="table-draw-limit">
+              每项最多抽取次数
+              <input
+                id="table-draw-limit"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={drawLimit}
+                onChange={(event) => setDrawLimit(event.target.value)}
+              />
+            </label>
+            <button className="button button-secondary" type="submit">
+              抽取
+            </button>
+          </form>
+        </>
+      ) : (
+      <>
+      <div className="mode-choices" role="group" aria-label="抽取方式">
+        <button className="button button-secondary" type="button" aria-pressed={mode === "match"} onClick={() => chooseMode("match")}>
+          数值匹配
+        </button>
+        <button className="button button-secondary" type="button" aria-pressed={mode === "random"} onClick={() => chooseMode("random")}>
+          随机抽取
+        </button>
+        <button
+          className="button button-secondary"
+          type="button"
+          aria-pressed={mode === "expression"}
+          onClick={() => chooseMode("expression")}
+        >
+          表达式
+        </button>
+      </div>
+
+      {mode === "" ? <p className="note">先选择数值匹配、随机抽取或表达式。</p> : null}
+
+      {mode === "match" ? (
         <form
           className="inline-form"
           onSubmit={(event) => {
@@ -326,14 +552,14 @@ function TableDetail({
               onChange={(event) => onRangeInput(event.target.value)}
             />
           </label>
+          <HistoryNoteField id="table-note" value={note} onChange={onNote} />
           <button className="button" type="submit">
             匹配
           </button>
-          <button className="button button-secondary" type="button" onClick={onDraw}>
-            随机抽取
-          </button>
         </form>
-      ) : (
+      ) : null}
+
+      {mode === "random" ? (
         <form
           className="inline-form"
           onSubmit={(event) => {
@@ -341,12 +567,76 @@ function TableDetail({
             onDraw()
           }}
         >
+          <HistoryNoteField id="table-note" value={note} onChange={onNote} />
           <button className="button" type="submit">
-            随机抽取
+            抽取
           </button>
         </form>
-      )}
+      ) : null}
 
+      {mode === "expression" ? (
+        <>
+          <HistoryNoteField id="table-note" value={note} onChange={onNote} />
+          <form
+            className="stacked-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              onExpression(dice.expression)
+            }}
+          >
+            <label className="field" htmlFor="table-expression">
+              表达式
+              <input
+                id="table-expression"
+                value={dice.expression}
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(event) => dice.setExpression(event.target.value)}
+              />
+            </label>
+            <div className="inline-form expression-fields">
+              <label className="field" htmlFor="table-sides">
+                自定义面数
+                <input
+                  id="table-sides"
+                  type="number"
+                  inputMode="numeric"
+                  min={2}
+                  max={MAX_DIE_SIDES}
+                  value={dice.customSides}
+                  onChange={(event) => dice.setCustomSides(event.target.value)}
+                />
+              </label>
+              <label className="field" htmlFor="table-count">
+                投掷颗数
+                <input
+                  id="table-count"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={dice.customCount}
+                  onChange={(event) => dice.setCustomCount(event.target.value)}
+                />
+              </label>
+              <label className="field" htmlFor="table-modifier">
+                数值补正
+                <input
+                  id="table-modifier"
+                  type="number"
+                  inputMode="numeric"
+                  value={dice.customModifier}
+                  onChange={(event) => dice.setCustomModifier(event.target.value)}
+                />
+              </label>
+            </div>
+            <button className="button" type="submit">
+              抽取
+            </button>
+          </form>
+        </>
+      ) : null}
+      </>
+      )}
       {actionError ? (
         <p className="form-error" role="alert">
           {actionError}
@@ -374,11 +664,12 @@ function TableDetail({
               <div>
                 <dt>区间</dt>
                 <dd>
-                  {resultMin}-{resultMax}
+                  {formatAssignedSpan(resultMin, resultMax)}
                 </dd>
               </div>
             </dl>
           ) : null}
+          {expressionDice ? <DiceBreakdown result={expressionDice} /> : null}
           {linked.status === "loading" && !entryLoadError ? <p className="note">正在读取关联词条…</p> : null}
           {linked.status === "loading" && entryLoadError ? (
             <p className="form-error" role="alert">
@@ -404,6 +695,30 @@ function TableDetail({
           ) : null}
         </section>
       ) : null}
+
+      {sequence ? (
+        <section className="panel" aria-live="polite">
+          <div className="panel-header">
+            <p className="dice-total-label">{sequence.action === "order" ? "随机排序" : "抽取结果"}</p>
+            <button className="button button-secondary" type="button" onClick={onCopy}>
+              {copied ? "已复制" : "复制"}
+            </button>
+          </div>
+          {copyError ? <p className="form-error">{copyError}</p> : null}
+          <p className="dice-expression">{sequenceLabel}</p>
+          <h3 className="section-label">每一项</h3>
+          <ul className="dice-rolls">
+            {sequence.rows.map((row, index) => (
+              <li key={`${row.id}-${index}`}>{row.text}</li>
+            ))}
+          </ul>
+          {historyError ? (
+            <p className="form-error" role="alert">
+              没有写入历史。{historyError}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
     </article>
   )
 }
@@ -415,8 +730,8 @@ function TableTransfer({ tableId }: { tableId: string }) {
   return <RecordTransferButtons scope="tables" record={table} />
 }
 
-function rowLabel(entry: RandomTable["entries"][number]): string {
-  if ("min" in entry && "max" in entry) return `${entry.min}-${entry.max}`
-  if ("weight" in entry) return `权重 ${entry.weight}`
-  return "等概率"
+function rowLabel(entry: RandomTable["entries"][number], weightTotal: number): string {
+  if ("weight" in entry) return `${entry.weight} / ${weightTotal}`
+  if ("min" in entry && "max" in entry) return formatAssignedSpan(entry.min, entry.max)
+  return ""
 }

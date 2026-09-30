@@ -55,10 +55,11 @@ export function useEntries() {
     const outcome = drawEntry(filtered)
     if (!outcome.ok) {
       setActionError(outcome.message)
-      return
+      return outcome
     }
     setActionError(null)
     setSelectedId(outcome.entry.id)
+    return outcome
   }
 
   return {

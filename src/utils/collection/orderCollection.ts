@@ -1,0 +1,171 @@
+import { readRandomUnit, type RandomSource } from "../random.ts"
+
+export const MAX_COLLECTION_SIZE = 10_000
+
+export function collectionFromRange(
+  startText: string,
+  endText: string,
+): { ok: true; values: number[] } | { ok: false; message: string } {
+  const start = readInteger(startText, "请输入起始。", "起始需要是整数。")
+  if (!start.ok) return start
+  const end = readInteger(endText, "请输入结束。", "结束需要是整数。")
+  if (!end.ok) return end
+  if (start.value > end.value) return { ok: false, message: "起始不能大于结束。" }
+  const size = end.value - start.value + 1
+  if (size > MAX_COLLECTION_SIZE) return { ok: false, message: "区间太大，无法生成。" }
+  return { ok: true, values: Array.from({ length: size }, (_, index) => start.value + index) }
+}
+
+export function collectionFromCustom(input: string): { ok: true; values: number[] } | { ok: false; message: string } {
+  const parts = input
+    .split(/[\s,，、]+/)
+    .map((part) => part.trim())
+    .filter((part) => part !== "")
+  if (parts.length === 0) return { ok: false, message: "请输入数值。" }
+  if (parts.length > MAX_COLLECTION_SIZE) return { ok: false, message: "元素太多，无法生成。" }
+  const values: number[] = []
+  for (const part of parts) {
+    if (!/^-?\d+$/.test(part)) return { ok: false, message: "请输入整数。" }
+    const value = Number(part)
+    if (!Number.isSafeInteger(value)) return { ok: false, message: "请输入整数。" }
+    if (values.includes(value)) return { ok: false, message: "集合里有重复的数值。" }
+    values.push(value)
+  }
+  return { ok: true, values }
+}
+
+export function shuffleItems<T>(items: readonly T[], random: RandomSource = Math.random): T[] {
+  const next = [...items]
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(readRandomUnit(random) * (index + 1))
+    const current = next[index]
+    const other = next[swap]
+    if (current === undefined || other === undefined) continue
+    next[index] = other
+    next[swap] = current
+  }
+  return next
+}
+
+export function shuffleValues(values: readonly number[], random: RandomSource = Math.random): number[] {
+  return shuffleItems(values, random)
+}
+
+export function readOrderCount(
+  input: string,
+  size: number,
+): { ok: true; value: number } | { ok: false; message: string } {
+  const trimmed = input.trim()
+  if (trimmed === "") return { ok: false, message: "请输入输出个数。" }
+  if (!/^\d+$/.test(trimmed)) return { ok: false, message: "输出个数需要是整数。" }
+  const value = Number(trimmed)
+  if (!Number.isSafeInteger(value)) return { ok: false, message: "输出个数需要是整数。" }
+  if (value < 1) return { ok: false, message: "输出个数至少为 1。" }
+  if (value > size) return { ok: false, message: "输出个数不能超过集合大小。" }
+  return { ok: true, value }
+}
+
+export function shuffleByWeight<T>(items: readonly T[], weights: readonly number[], random: RandomSource = Math.random): T[] {
+  if (weightsEqual(weights)) return shuffleItems(items, random)
+  const pool = items.map((item, index) => ({ item, weight: weights[index] ?? 0 }))
+  const ordered: T[] = []
+  while (pool.length > 0) {
+    const index = pickWeighted(pool.map((entry) => entry.weight), random)
+    const chosen = pool.splice(index, 1)[0]
+    if (!chosen) break
+    ordered.push(chosen.item)
+  }
+  return ordered
+}
+
+export function drawWithCap<T>(items: readonly T[], count: number, limit: number, random: RandomSource = Math.random): T[] {
+  const bag = items.flatMap((item) => Array.from({ length: limit }, () => item))
+  return shuffleItems(bag, random).slice(0, count)
+}
+
+export function drawByWeight<T>(
+  items: readonly T[],
+  weights: readonly number[],
+  count: number,
+  limit: number,
+  random: RandomSource = Math.random,
+): { ok: true; values: T[] } | { ok: false; message: string } {
+  if (items.length === 0) return { ok: false, message: "集合是空的。" }
+  if (count < 1) return { ok: false, message: "抽取个数至少为 1。" }
+  if (limit < 1) return { ok: false, message: "每项最多抽取次数至少为 1。" }
+  if (count > items.length * limit) return { ok: false, message: "抽取个数超过了每个元素允许出现的次数。" }
+  if (count > MAX_COLLECTION_SIZE) return { ok: false, message: "抽取个数太大。" }
+  if (weightsEqual(weights)) return { ok: true, values: drawWithCap(items, count, limit, random) }
+
+  const remaining = items.map(() => limit)
+  const values: T[] = []
+  for (let drawn = 0; drawn < count; drawn += 1) {
+    const available = items.flatMap((_, index) => ((remaining[index] ?? 0) > 0 ? [index] : []))
+    const index = pickWeighted(
+      available.map((itemIndex) => weights[itemIndex] ?? 0),
+      random,
+    )
+    const chosen = available[index]
+    const item = chosen === undefined ? undefined : items[chosen]
+    if (chosen === undefined || item === undefined) return { ok: false, message: "集合是空的。" }
+    remaining[chosen] = (remaining[chosen] ?? 0) - 1
+    values.push(item)
+  }
+  return { ok: true, values }
+}
+
+export function formatSequence(summary: string, values: readonly (string | number)[]): string {
+  const lines = [summary, `个数：${values.length}`]
+  values.forEach((value, index) => {
+    lines.push(`${index + 1}. ${value}`)
+  })
+  return lines.join("\n")
+}
+
+export function drawLimited(
+  values: readonly number[],
+  countText: string,
+  limitText: string,
+  random: RandomSource = Math.random,
+): { ok: true; values: number[] } | { ok: false; message: string } {
+  if (values.length === 0) return { ok: false, message: "集合是空的。" }
+  const count = readInteger(countText, "请输入抽取个数。", "抽取个数需要是整数。")
+  if (!count.ok) return count
+  const limit = readInteger(limitText, "请输入每项最多抽取次数。", "每项最多抽取次数需要是整数。")
+  if (!limit.ok) return limit
+  if (count.value < 1) return { ok: false, message: "抽取个数至少为 1。" }
+  if (limit.value < 1) return { ok: false, message: "每项最多抽取次数至少为 1。" }
+  if (count.value > values.length * limit.value) {
+    return { ok: false, message: "抽取个数超过了每个元素允许出现的次数。" }
+  }
+  if (count.value > MAX_COLLECTION_SIZE) return { ok: false, message: "抽取个数太大。" }
+  return { ok: true, values: drawWithCap(values, count.value, limit.value, random) }
+}
+
+function weightsEqual(weights: readonly number[]): boolean {
+  const first = weights[0]
+  return weights.every((weight) => weight === first)
+}
+
+function pickWeighted(weights: readonly number[], random: RandomSource): number {
+  const total = weights.reduce((sum, weight) => sum + weight, 0)
+  let cursor = readRandomUnit(random) * total
+  for (let index = 0; index < weights.length; index += 1) {
+    cursor -= weights[index] ?? 0
+    if (cursor < 0) return index
+  }
+  return Math.max(0, weights.length - 1)
+}
+
+function readInteger(
+  input: string,
+  empty: string,
+  invalid: string,
+): { ok: true; value: number } | { ok: false; message: string } {
+  const trimmed = input.trim()
+  if (trimmed === "") return { ok: false, message: empty }
+  if (!/^-?\d+$/.test(trimmed)) return { ok: false, message: invalid }
+  const value = Number(trimmed)
+  if (!Number.isSafeInteger(value)) return { ok: false, message: invalid }
+  return { ok: true, value }
+}

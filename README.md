@@ -1,6 +1,6 @@
 # Faust TRPG Craft
 
-面向个人和小规模跑团的轻量级纯前端工具。骰子、随机表、词条、生成器和历史都在浏览器里运行，数据保存在这台浏览器中，不会自动上传。
+面向个人和小规模跑团的轻量级纯前端工具。骰子、随机表、词条、生成器、集合和历史都在浏览器里运行，数据保存在这台浏览器中，不会自动上传。
 
 线上地址：[https://faustknowsall.cc](https://faustknowsall.cc)
 
@@ -18,11 +18,11 @@ npm run build
 ## 页面
 
 - `/` 首页
-- `/pipeline` 链路
 - `/dice` 骰子
 - `/tables` 随机表
 - `/entries` 词条
 - `/generators` 生成器
+- `/collections` 集合
 - `/history` 历史
 - `/storage` 数据管理
 - `/settings` 设置

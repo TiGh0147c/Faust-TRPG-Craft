@@ -41,7 +41,7 @@ export function SettingsPage() {
             />
             显示内置数据
           </label>
-          <p className="note">默认关闭。打开后，内置内容会回到随机表、词条、生成器、链路和数据管理中。</p>
+          <p className="note">默认关闭。打开后，内置内容会回到随机表、词条、生成器和数据管理中。</p>
         </>
       ) : null}
     </section>

@@ -1,15 +1,10 @@
-import type {
-  RandomTable,
-  RangeTableEntry,
-  UniformTableEntry,
-  WeightTableEntry,
-} from "../../types/table.ts"
+import type { CollectionTableEntry, RandomTable, RangeTableEntry } from "../../types/table.ts"
 
 export type ParseTablesOutcome =
   | { ok: true; tables: RandomTable[] }
   | { ok: false; message: string }
 
-const MODES = ["range", "weight", "uniform"] as const
+const MODES = ["range", "collection", "weight", "uniform"] as const
 
 export function parseRandomTables(input: unknown): ParseTablesOutcome {
   if (!Array.isArray(input)) {
@@ -56,27 +51,15 @@ function parseTable(input: unknown): { ok: true; table: RandomTable } | { ok: fa
     return { ok: true, table: { id, name, description, category, tags, mode, entries } }
   }
 
-  if (mode === "weight") {
-    const entries: WeightTableEntry[] = []
-    for (const row of input.entries) {
-      const parsed = parseWeightRow(row)
-      if (!parsed.ok) return parsed
-      if (rowIds.has(parsed.entry.id)) return invalid()
-      rowIds.add(parsed.entry.id)
-      entries.push(parsed.entry)
-    }
-    return { ok: true, table: { id, name, description, category, tags, mode, entries } }
-  }
-
-  const entries: UniformTableEntry[] = []
+  const entries: CollectionTableEntry[] = []
   for (const row of input.entries) {
-    const parsed = parseUniformRow(row)
+    const parsed = parseCollectionRow(row, mode !== "weight")
     if (!parsed.ok) return parsed
     if (rowIds.has(parsed.entry.id)) return invalid()
     rowIds.add(parsed.entry.id)
     entries.push(parsed.entry)
   }
-  return { ok: true, table: { id, name, description, category, tags, mode, entries } }
+  return { ok: true, table: { id, name, description, category, tags, mode: "collection", entries } }
 }
 
 function parseRangeRow(
@@ -94,27 +77,26 @@ function parseRangeRow(
   return { ok: true, entry: { ...base.entry, min, max } }
 }
 
-function parseWeightRow(
+function parseCollectionRow(
   input: unknown,
-): { ok: true; entry: WeightTableEntry } | { ok: false; message: string } {
+  allowMissingWeight: boolean,
+): { ok: true; entry: CollectionTableEntry } | { ok: false; message: string } {
   const base = parseRowBase(input)
   if (!base.ok) return base
-  if (!isRecord(input) || typeof input.weight !== "number" || !Number.isFinite(input.weight) || input.weight <= 0) {
+  if (!isRecord(input)) return invalid()
+  if (input.weight === undefined) {
+    if (!allowMissingWeight) return { ok: false, message: "权重必须大于 0。" }
+    return { ok: true, entry: { ...base.entry, weight: 1 } }
+  }
+  if (typeof input.weight !== "number" || !Number.isFinite(input.weight) || input.weight <= 0) {
     return { ok: false, message: "权重必须大于 0。" }
   }
-  const weight = input.weight
-  return { ok: true, entry: { ...base.entry, weight } }
-}
-
-function parseUniformRow(
-  input: unknown,
-): { ok: true; entry: UniformTableEntry } | { ok: false; message: string } {
-  return parseRowBase(input)
+  return { ok: true, entry: { ...base.entry, weight: input.weight } }
 }
 
 function parseRowBase(
   input: unknown,
-): { ok: true; entry: UniformTableEntry } | { ok: false; message: string } {
+): { ok: true; entry: { id: string; text: string; entryId?: string } } | { ok: false; message: string } {
   if (!isRecord(input)) return invalid()
   const id = readString(input.id)
   const text = readString(input.text)
@@ -129,7 +111,7 @@ function invalid(): { ok: false; message: string } {
   return { ok: false, message: "内置随机表格式不正确。" }
 }
 
-function isMode(value: unknown): value is RandomTable["mode"] {
+function isMode(value: unknown): value is (typeof MODES)[number] {
   return typeof value === "string" && MODES.some((mode) => mode === value)
 }
 

@@ -1,6 +1,6 @@
 import type { DiceRollResult } from "./dice.ts"
 
-export type HistoryKind = "dice" | "table" | "pipeline" | "generator"
+export type HistoryKind = "dice" | "table" | "pipeline" | "generator" | "entry" | "collection"
 
 export type HistoryRecord = {
   id: string
@@ -10,6 +10,8 @@ export type HistoryRecord = {
   input: string
   diceResult?: DiceRollResult
   output: string
+  /** 这次投掷或抽取的可选说明。为空时不保存。 */
+  note?: string
   favorite: boolean
 }
 

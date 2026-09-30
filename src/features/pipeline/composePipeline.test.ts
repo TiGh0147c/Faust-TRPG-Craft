@@ -64,7 +64,7 @@ describe("composePipeline", () => {
     })
   })
 
-  it("returns a clear error for a miss, a bad expression, or a non-range table", () => {
+  it("returns a clear error for a miss, a bad expression, or a collection table", () => {
     expect(composeValuePipeline(exampleCityNightTable, [exampleEntry], "0")).toMatchObject({
       ok: false,
       message: "没有命中任何区间。",

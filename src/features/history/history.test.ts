@@ -71,6 +71,15 @@ describe("history mutations", () => {
     expect(second.data.history.map((item) => item.id)).toEqual(["history-2", "history-1"])
     expect(second.data.entries).toEqual([exampleEntry])
     expect(second.data.history[0]).toMatchObject({ favorite: false, createdAt: "2026-09-30T01:01:00.000Z" })
+    const noted = appendHistory(second.data, { kind: "dice", input: "1d6", output: "结果", note: "  夜间检定  " }, () => "history-3")
+    expect(noted.ok).toBe(true)
+    if (!noted.ok) return
+    expect(noted.data.history[0]?.note).toBe("夜间检定")
+    const blank = appendHistory(noted.data, { kind: "dice", input: "1d6", output: "结果", note: "   " }, () => "history-4")
+    expect(blank.ok).toBe(true)
+    if (!blank.ok) return
+    expect(blank.data.history[0]?.note).toBeUndefined()
+    expect(filterHistory(noted.data.history, { keyword: "夜间", kind: "", favoritesOnly: false })).toHaveLength(1)
   })
 
   it("toggles a favorite, deletes one record, and clears only history", () => {

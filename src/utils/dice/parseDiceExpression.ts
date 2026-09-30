@@ -71,6 +71,33 @@ export function expressionWithSides(input: string, sides: number): string {
   return formatDiceExpression({ ...parsed.value, sides })
 }
 
+export function composeDiceExpression(
+  count: string,
+  sides: string,
+  modifier: string,
+): { ok: true; expression: string } | { ok: false; message: string } {
+  const countText = count.trim()
+  const sidesText = sides.trim()
+  const modifierText = modifier.trim()
+  if (!/^\d+$/.test(sidesText)) {
+    return { ok: false, message: sidesText === "" ? "请输入面数。" : "面数需要是整数。" }
+  }
+  if (!/^\d+$/.test(countText)) {
+    return { ok: false, message: countText === "" ? "请输入颗数。" : "颗数需要是整数。" }
+  }
+  if (!/^-?\d+$/.test(modifierText)) {
+    return { ok: false, message: modifierText === "" ? "请输入数值补正。" : "数值补正需要是整数。" }
+  }
+  const expression = formatDiceExpression({
+    count: Number(countText),
+    sides: Number(sidesText),
+    modifier: Number(modifierText),
+  })
+  const parsed = parseDiceExpression(expression)
+  if (!parsed.ok) return parsed
+  return { ok: true, expression }
+}
+
 export function formatDiceExpression(parsed: ParsedDiceExpression): string {
   const base = `${parsed.count}d${parsed.sides}`
   if (parsed.modifier > 0) return `${base}+${parsed.modifier}`

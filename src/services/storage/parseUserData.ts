@@ -4,7 +4,7 @@ import { parseEntries } from "../../utils/entry/parseEntries.ts"
 import { parseGenerators } from "../../utils/generator/parseGenerators.ts"
 import { parseRandomTables } from "../../utils/table/parseRandomTables.ts"
 
-const HISTORY_KINDS: readonly HistoryKind[] = ["dice", "table", "pipeline", "generator"]
+const HISTORY_KINDS: readonly HistoryKind[] = ["dice", "table", "pipeline", "generator", "entry", "collection"]
 
 export type ParseUserDataOutcome =
   | { ok: true; data: UserData }
@@ -56,6 +56,8 @@ export function parseHistoryRecords(
     if (item.diceResult !== undefined && !isRecord(item.diceResult)) return invalid()
     const diceResult = isRecord(item.diceResult) ? asDiceResult(item.diceResult) : undefined
     if (item.diceResult !== undefined && !diceResult) return invalid()
+    if (item.note !== undefined && typeof item.note !== "string") return invalid()
+    const note = typeof item.note === "string" ? item.note.trim() : ""
     history.push({
       id,
       createdAt,
@@ -64,6 +66,7 @@ export function parseHistoryRecords(
       output,
       favorite: item.favorite,
       diceResult,
+      ...(note ? { note } : {}),
     })
   }
   return { ok: true, history }

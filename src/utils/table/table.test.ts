@@ -6,6 +6,8 @@ import {
   exampleWeightTable,
 } from "../../types/examples.ts"
 import type { RandomTable } from "../../types/table.ts"
+import { rollTableExpression, TABLE_COVERAGE_ERROR } from "./assignedRanges.ts"
+import { drawCollectionTable, orderCollectionTable } from "./orderRows.ts"
 import { drawTable } from "./drawTable.ts"
 import { filterTables } from "./filterTables.ts"
 import { formatTableResult } from "./formatTableResult.ts"
@@ -78,6 +80,36 @@ describe("matchTableByValue", () => {
   })
 })
 
+describe("assigned ranges", () => {
+  it("rejects an expression whose possible values leave the table", () => {
+    expect(rollTableExpression(exampleCityNightTable, "1d100", () => 0.72)).toMatchObject({
+      ok: true,
+      result: { value: 73, text: "遭遇突发事件" },
+      dice: { rolls: [{ value: 73 }] },
+    })
+    expect(rollTableExpression(exampleCityNightTable, "1d100+1", () => 0)).toMatchObject({
+      ok: false,
+      message: TABLE_COVERAGE_ERROR,
+    })
+    const gapped: RandomTable = {
+      ...exampleCityNightTable,
+      entries: [
+        { id: "low", text: "低", min: 1, max: 2 },
+        { id: "high", text: "高", min: 4, max: 5 },
+      ],
+    }
+    expect(rollTableExpression(gapped, "1d2", () => 0).ok).toBe(true)
+    expect(rollTableExpression(gapped, "1d4", () => 0)).toMatchObject({
+      ok: false,
+      message: TABLE_COVERAGE_ERROR,
+    })
+    expect(rollTableExpression(exampleWeightTable, "1d4", () => 0)).toMatchObject({
+      ok: false,
+      message: "这张表不是按数值区间匹配的。",
+    })
+  })
+})
+
 describe("drawTable", () => {
   it("draws a covered number and then matches the range", () => {
     const outcome = drawTable(exampleCityNightTable, sequence([0.72]))
@@ -87,7 +119,45 @@ describe("drawTable", () => {
     })
   })
 
-  it("draws weight and uniform rows from the same engine", () => {
+  it("orders and draws collection rows, using weight when the weights differ", () => {
+    const ordered = orderCollectionTable(exampleUniformTable, sequence([0, 0]))
+    expect(ordered.ok).toBe(true)
+    if (!ordered.ok) return
+    expect(ordered.result.rows.map((row) => row.text).sort()).toEqual(["结果 A", "结果 B"])
+
+    const weighted = orderCollectionTable(exampleWeightTable, sequence([0.99]))
+    expect(weighted.ok).toBe(true)
+    if (!weighted.ok) return
+    expect(weighted.result.rows[0]?.text).toBe("少见")
+
+    const drawn = drawCollectionTable(exampleWeightTable, "2", "1", sequence([0.99, 0]))
+    expect(drawn.ok).toBe(true)
+    if (!drawn.ok) return
+    expect(drawn.result.rows.map((row) => row.text)).toEqual(["少见", "常见"])
+    expect(drawCollectionTable(exampleUniformTable, "3", "1")).toMatchObject({
+      ok: false,
+      message: "抽取个数超过了每个元素允许出现的次数。",
+    })
+    expect(orderCollectionTable(exampleWeightTable, () => 0, ["example-weight-rare"])).toMatchObject({
+      ok: true,
+      result: { rows: [{ text: "少见" }] },
+    })
+    expect(orderCollectionTable(exampleWeightTable, () => 0, [])).toMatchObject({
+      ok: false,
+      message: "请至少选择一项。",
+    })
+    const prefixed = orderCollectionTable(exampleUniformTable, sequence([0, 0]), undefined, 1)
+    expect(prefixed.ok).toBe(true)
+    if (!prefixed.ok) return
+    expect(prefixed.result.rows).toHaveLength(1)
+    expect(prefixed.result.prefix).toBe(1)
+    expect(orderCollectionTable(exampleUniformTable, () => 0, undefined, 3)).toMatchObject({
+      ok: false,
+      message: "输出个数不能超过集合大小。",
+    })
+  })
+
+  it("draws collection rows from the same engine", () => {
     expect(drawTable(exampleWeightTable, sequence([0]))).toMatchObject({
       ok: true,
       result: { text: "常见" },
@@ -159,6 +229,37 @@ describe("parseRandomTables", () => {
       result: { text: "遭遇突发事件", value: 73 },
     })
     expect(parseRandomTables([exampleCityNightTable, exampleWeightTable, exampleUniformTable]).ok).toBe(true)
+  })
+
+  it("reads old weight and uniform tables as collections", () => {
+    const parsed = parseRandomTables([
+      {
+        id: "old-uniform",
+        name: "旧等概率",
+        description: "",
+        category: "test",
+        tags: [],
+        mode: "uniform",
+        entries: [{ id: "a", text: "甲" }],
+      },
+      {
+        id: "old-weight",
+        name: "旧权重",
+        description: "",
+        category: "test",
+        tags: [],
+        mode: "weight",
+        entries: [{ id: "b", text: "乙", weight: 2 }],
+      },
+    ])
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.tables[0]).toMatchObject({ mode: "collection", entries: [{ text: "甲", weight: 1 }] })
+    expect(parsed.tables[1]).toMatchObject({ mode: "collection", entries: [{ text: "乙", weight: 2 }] })
+    expect(parseRandomTables([{ ...exampleWeightTable, mode: "weight", entries: [{ id: "zero", text: "空" }] }])).toMatchObject({
+      ok: false,
+      message: "权重必须大于 0。",
+    })
   })
 
   it("rejects a broken file without throwing", () => {

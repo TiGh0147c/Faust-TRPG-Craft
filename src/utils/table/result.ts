@@ -8,6 +8,7 @@ export function toTableRollResult(
   table: RandomTable,
   entry: TableEntry,
   value?: number,
+  span?: { min: number; max: number },
 ): TableRollResult {
   return {
     tableId: table.id,
@@ -17,7 +18,7 @@ export function toTableRollResult(
     entryId: entry.entryId,
     mode: table.mode,
     value,
-    min: "min" in entry ? entry.min : undefined,
-    max: "max" in entry ? entry.max : undefined,
+    min: span?.min ?? ("min" in entry ? entry.min : undefined),
+    max: span?.max ?? ("max" in entry ? entry.max : undefined),
   }
 }
