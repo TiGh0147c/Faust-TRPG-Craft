@@ -18,7 +18,7 @@ export function SettingsPage() {
   return (
     <section className="page">
       <h1>设置</h1>
-      <p className="lead">这些选项保存在这台浏览器里。关闭内置数据后，内置随机表、词条和生成器不会出现，也不能被选中。</p>
+      <p className="lead">控制是否使用内置的随机表、词条和生成器。</p>
       {catalog.status === "loading" ? <p className="note">正在读取设置…</p> : null}
       {catalog.loadError ? (
         <p className="form-error" role="alert">

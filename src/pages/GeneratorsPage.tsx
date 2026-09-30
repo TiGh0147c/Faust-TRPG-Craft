@@ -94,7 +94,7 @@ export function GeneratorsPage() {
   return (
     <section className="page">
       <h1>生成器</h1>
-      <p className="lead">选择一个预设，一次生成一段内容。内置生成器只读，用户生成器可以在这里添加和修改。结果会写入历史。</p>
+      <p className="lead">选一个预设，一次生成一段内容。</p>
 
       <div className="filters">
         <label className="field" htmlFor="generator-keyword">

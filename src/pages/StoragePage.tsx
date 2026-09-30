@@ -72,7 +72,7 @@ export function StoragePage() {
   return (
     <section className="page">
       <h1>数据管理</h1>
-      <p className="lead">内置数据只读。用户内容和历史分成两套备份，可以整包导入导出，也可以按类型或单条处理。</p>
+      <p className="lead">导入、导出或清理这台浏览器里的内容。</p>
 
       {catalog.status === "loading" ? <p className="note">正在读取本地数据…</p> : null}
       {catalog.loadError ? (

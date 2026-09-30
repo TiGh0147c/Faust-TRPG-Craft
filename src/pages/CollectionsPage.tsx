@@ -169,7 +169,7 @@ export function CollectionsPage() {
     <section className="page">
       <h1>集合</h1>
       <p className="lead">
-        先选择数值区间或自定义集合。数值区间按整数生成。自定义集合逐项加入元素名和权重，列表里可以修改或删除。然后可以填写备注，再打乱集合，或指定抽取个数并限制每个元素最多出现的次数。
+        打乱一段数值，或按权重排列、抽取自己加入的项目。
       </p>
 
       <div className="mode-choices" role="group" aria-label="集合来源">

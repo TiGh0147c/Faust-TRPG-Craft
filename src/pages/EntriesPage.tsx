@@ -95,7 +95,7 @@ export function EntriesPage() {
   return (
     <section className="page">
       <h1>词条</h1>
-      <p className="lead">按关键词、分类和标签查找，并按权重随机抽取。内置词条只读，用户词条可以在这里添加和修改。</p>
+      <p className="lead">查找词条，或按权重随机抽一条。</p>
 
       <div className="filters">
         <label className="field" htmlFor="entry-keyword">

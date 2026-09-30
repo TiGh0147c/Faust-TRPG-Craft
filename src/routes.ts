@@ -15,22 +15,22 @@ export const appRoutes: AppRoute[] = [
   {
     path: "/dice",
     label: "骰子",
-    description: "投掷常见骰子和简单表达式。",
+    description: "单次投掷，或多组比较。",
   },
   {
     path: "/collections",
     label: "集合",
-    description: "打乱数值区间，或按权重维护自定义集合后再排序和抽取。",
+    description: "排序或抽取一组内容。",
   },
   {
     path: "/entries",
     label: "词条",
-    description: "查找、筛选，并与随机表结果关联。",
+    description: "查找，或随机抽一条。",
   },
   {
     path: "/tables",
     label: "随机表",
-    description: "数值区间表按数值抽取，集合表按权重排序和抽取。",
+    description: "匹配、抽取，或按权重排序。",
   },
   {
     path: "/generators",
@@ -40,16 +40,16 @@ export const appRoutes: AppRoute[] = [
   {
     path: "/history",
     label: "历史",
-    description: "查看、复制、收藏历史，并复选后批量删除或导出。",
+    description: "查看和整理最近的结果。",
   },
   {
     path: "/storage",
     label: "数据管理",
-    description: "导入、导出和清理保存在这台浏览器里的用户内容与历史。",
+    description: "导入、导出或清理本地内容。",
   },
   {
     path: "/settings",
     label: "设置",
-    description: "控制是否显示和选用内置数据。",
+    description: "是否使用内置数据。",
   },
 ]

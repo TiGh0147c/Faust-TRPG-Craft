@@ -177,7 +177,7 @@ export function DicePage() {
     <section className="page">
       <h1>骰子</h1>
       <p className="lead">
-        可以选择单次投掷，或多次比较。多次比较里每一组是一张卡片。选中卡片后，名称会立刻显示在卡片上；表达式、面数、颗数、数值补正和常用骰子要点应用到当前骰子或应用到全部骰子后才写入。投掷后按结果从大到小一起显示，并带上名称。备注可选，留空则不会出现在历史里。成功的投掷会写入历史。
+        单次投掷，或把多组骰子放在一起比较。
       </p>
 
       <div className="mode-choices" role="group" aria-label="投掷方式">

@@ -177,7 +177,7 @@ export function TablesPage() {
     <section className="page">
       <h1>随机表</h1>
       <p className="lead">
-        数值区间表可以匹配、抽取，或用表达式投骰。集合表按权重排序和抽取，权重默认是 1。成功的结果会写入历史。
+        按数值匹配或抽取，也可以按权重排序和抽取。
       </p>
 
       <div className="filters">

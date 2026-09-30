@@ -8,7 +8,7 @@ export function HomePage() {
     <section className="page">
       <h1>首页</h1>
       <p className="lead">
-        在浏览器里使用骰子、集合、词条、随机表和生成器。数据留在本机，线上从 faustknowsall.cc 打开。
+        用骰子、集合、词条、随机表和生成器跑团。数据留在这台浏览器里。
       </p>
       <div className="card-grid">
         {tools.map((tool) => (

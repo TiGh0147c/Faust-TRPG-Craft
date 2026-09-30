@@ -156,7 +156,7 @@ export function HistoryPage() {
   return (
     <section className="page">
       <h1>历史</h1>
-      <p className="lead">查看最近的骰子、抽表、词条、生成和集合结果。有备注的记录会显示备注。可以复选后批量删除或导出。</p>
+      <p className="lead">查看、复制和收藏最近的结果。</p>
 
       {catalog.status === "loading" ? <p className="note">正在读取历史…</p> : null}
       {catalog.loadError ? (
