@@ -27,9 +27,7 @@ type DiceMode = "single" | "compare"
 function resizeSlots(current: DiceFormValues[], count: number): DiceFormValues[] {
   if (count === current.length) return current
   if (count < current.length) return current.slice(0, count)
-  const added = Array.from({ length: count - current.length }, (_, offset) =>
-    diceForm(),
-  )
+  const added = Array.from({ length: count - current.length }, () => diceForm())
   return [...current, ...added]
 }
 
