@@ -148,7 +148,7 @@ export function deleteGenerator(user: UserData, builtinIds: ReadonlySet<string>,
 }
 
 export function clearUserContent(user: UserData): UserDataMutation {
-  return { ok: true, data: { ...user, tables: [], entries: [], generators: [], settings: [] } }
+  return { ok: true, data: { ...user, tables: [], entries: [], generators: [] } }
 }
 
 export function clearSettings(user: UserData): UserDataMutation {

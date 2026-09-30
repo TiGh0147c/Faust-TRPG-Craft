@@ -1,13 +1,15 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { readEntriesTrace, writeEntriesTrace } from "../schemes/pageTraces.ts"
 import { drawEntry, filterEntries } from "../../utils/entry/index.ts"
 import { useCatalog } from "../storage/useCatalog.ts"
 
 export function useEntries() {
   const library = useCatalog()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [keyword, setKeyword] = useState("")
-  const [category, setCategory] = useState("")
-  const [tag, setTag] = useState("")
+  const [restored] = useState(readEntriesTrace)
+  const [selectedId, setSelectedId] = useState<string | null>(restored.selectedId)
+  const [keyword, setKeyword] = useState(restored.keyword)
+  const [category, setCategory] = useState(restored.category)
+  const [tag, setTag] = useState(restored.tag)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const filtered = useMemo(
@@ -30,6 +32,10 @@ export function useEntries() {
   )
   const selected =
     filtered.find((entry) => entry.id === selectedId) ?? (selectedId === null ? (filtered[0] ?? null) : null)
+
+  useEffect(() => {
+    writeEntriesTrace({ keyword, category, tag, selectedId })
+  }, [keyword, category, tag, selectedId])
 
   function select(id: string) {
     setActionError(null)

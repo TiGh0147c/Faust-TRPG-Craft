@@ -189,7 +189,7 @@ describe("transfer backups", () => {
     expect(content.data.tables).toEqual([])
     expect(content.data.entries).toEqual([])
     expect(content.data.generators).toEqual([])
-    expect(content.data.settings).toEqual([])
+    expect(content.data.settings).toEqual(source.settings)
     expect(content.data.history).toEqual(source.history)
     expect(source.tables).toHaveLength(1)
     const settings = clearSettings(source)

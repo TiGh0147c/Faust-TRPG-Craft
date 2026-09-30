@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
+import { clearWorkingTraces } from "../features/schemes/pageTraces.ts"
 import { ImportFileButton } from "../features/storage/ImportFileButton.tsx"
 import { downloadJson } from "../features/storage/downloadJson.ts"
 import { useCatalog } from "../features/storage/useCatalog.ts"
@@ -21,7 +22,9 @@ import type { TransferEnvelope, TransferScope } from "../types/transfer.ts"
 
 type Pending =
   | { kind: "import"; envelope: TransferEnvelope }
+  | { kind: "clear-traces" }
   | { kind: "clear-content" }
+  | { kind: "clear-history" }
   | { kind: "clear-settings" }
   | { kind: "clear-all" }
 
@@ -55,18 +58,42 @@ export function StoragePage() {
     if (!pending || saving) return
     setSaving(true)
     setActionError(null)
+    if (pending.kind === "clear-traces") {
+      clearWorkingTraces()
+      setSaving(false)
+      setPending(null)
+      setNotice("已清除。")
+      return
+    }
     const result =
       pending.kind === "import"
         ? await catalog.importTransfer(pending.envelope)
         : pending.kind === "clear-content"
           ? await catalog.clearUserContent()
-          : pending.kind === "clear-settings"
-            ? await catalog.clearSettings()
-            : await catalog.clearAllData()
+          : pending.kind === "clear-history"
+            ? await catalog.clearHistory()
+            : pending.kind === "clear-settings"
+              ? await catalog.clearSettings()
+              : await catalog.clearAllData()
     setSaving(false)
     setPending(null)
     if (!result.ok) setActionError(result.message)
-    else setNotice(pending.kind === "import" ? "已导入。" : "已清空。")
+    else setNotice(pending.kind === "import" ? "已导入。" : pending.kind === "clear-settings" ? "已恢复。" : "已清除。")
+  }
+
+  const confirmBox = pending ? (
+    <PendingConfirm
+      pending={pending}
+      user={catalog.user}
+      saving={saving}
+      onConfirm={() => void confirmPending()}
+      onCancel={() => setPending(null)}
+    />
+  ) : null
+
+  function importConfirm(scope: TransferScope) {
+    if (pending?.kind !== "import" || pending.envelope.scope !== scope) return null
+    return confirmBox
   }
 
   return (
@@ -93,17 +120,6 @@ export function StoragePage() {
             </p>
           ) : null}
           {notice ? <p className="note">{notice}</p> : null}
-          {pending ? (
-            <div className="inline-form">
-              <p className="note transfer-status">{pendingText(pending, catalog.user)}</p>
-              <button className="button" type="button" disabled={saving} onClick={() => void confirmPending()}>
-                {pending.kind === "import" ? "确认导入" : "确认清空"}
-              </button>
-              <button className="button button-secondary" type="button" disabled={saving} onClick={() => setPending(null)}>
-                取消
-              </button>
-            </div>
-          ) : null}
 
           <h2 className="section-label">内置数据</h2>
           {catalog.showBuiltin ? (
@@ -153,6 +169,7 @@ export function StoragePage() {
               onError={rejectImport}
             />
           </div>
+          {importConfirm("user")}
 
           <h2 className="section-label">按类型导入导出</h2>
           <TypeSection
@@ -165,6 +182,7 @@ export function StoragePage() {
             onExportOne={(record) => download(exportTablesMerge([record]), record.name)}
             onParsed={chooseImport}
             onError={rejectImport}
+            confirm={importConfirm("tables")}
           />
           <TypeSection
             title="词条"
@@ -176,6 +194,7 @@ export function StoragePage() {
             onExportOne={(record) => download(exportEntriesMerge([record]), record.name)}
             onParsed={chooseImport}
             onError={rejectImport}
+            confirm={importConfirm("entries")}
           />
           <TypeSection
             title="生成器"
@@ -187,10 +206,10 @@ export function StoragePage() {
             onExportOne={(record) => download(exportGeneratorsMerge([record]), record.name)}
             onParsed={chooseImport}
             onError={rejectImport}
+            confirm={importConfirm("generators")}
           />
           <h3 className="section-label">设置</h3>
-          <p className="note">当前没有单独的设置编辑界面。设置仍可以整份导出，导入时覆盖。</p>
-          <div className="inline-form">
+          <div className="action-row">
             <button className="button button-secondary" type="button" onClick={() => download(exportSettingsSnapshot(catalog.user))}>
               导出全部设置
             </button>
@@ -202,21 +221,34 @@ export function StoragePage() {
               onParsed={chooseImport}
               onError={rejectImport}
             />
+            <button className="button" type="button" onClick={() => ask("clear-settings")}>
+              恢复默认设置
+            </button>
           </div>
+          {pending?.kind === "clear-settings" ? confirmBox : null}
+          {importConfirm("settings")}
 
           <h2 className="section-label">清理</h2>
-          <div className="inline-form">
-            <button className="button button-secondary" type="button" onClick={() => ask("clear-content")}>
-              删除用户数据
+          <div className="action-row">
+            <button className="button" type="button" onClick={() => ask("clear-traces")}>
+              清除用户痕迹
             </button>
-            <button className="button button-secondary" type="button" onClick={() => ask("clear-settings")}>
-              恢复默认
+            <button className="button" type="button" onClick={() => ask("clear-content")}>
+              清除用户自定义内容
             </button>
-            <button className="button button-secondary" type="button" onClick={() => ask("clear-all")}>
-              清空全部
+            <button className="button" type="button" onClick={() => ask("clear-history")}>
+              清除所有历史记录
+            </button>
+            <button className="button" type="button" onClick={() => ask("clear-all")}>
+              清除全部数据
             </button>
           </div>
-          <p className="note">删除用户数据会保留历史。恢复默认只清空设置。清空全部会同时删除用户内容和历史，内置内容保留。</p>
+          {pending?.kind === "clear-traces" ||
+          pending?.kind === "clear-content" ||
+          pending?.kind === "clear-history" ||
+          pending?.kind === "clear-all"
+            ? confirmBox
+            : null}
         </>
       ) : null}
     </section>
@@ -225,9 +257,45 @@ export function StoragePage() {
 
 function pendingText(pending: Pending, user: Parameters<typeof describeImport>[0]): string {
   if (pending.kind === "import") return describeImport(user, pending.envelope)
-  if (pending.kind === "clear-content") return "将删除用户随机表、词条、生成器和设置。历史会保留。"
-  if (pending.kind === "clear-settings") return "将清空设置。用户随机表、词条、生成器和历史会保留。"
-  return "将删除用户内容和全部历史。内置内容会保留。"
+  if (pending.kind === "clear-traces") return "清除用户痕迹将重置用户所有的操作痕迹使其返回默认状态。"
+  if (pending.kind === "clear-content") return "清除用户自定义内容将清除所有用户自定义构建的随机表、词条和生成器等内容。"
+  if (pending.kind === "clear-history") return "清除所有历史记录将清除用户所有的历史记录。"
+  if (pending.kind === "clear-settings") return "恢复默认设置将重置用户的所有设置使其返回默认状态。"
+  return "清除全部数据将同时重置用户操作痕迹，清除用户自定义构建内容与所有历史记录，恢复默认设置。"
+}
+
+function confirmLabel(pending: Pending): string {
+  if (pending.kind === "import") return "确认导入"
+  if (pending.kind === "clear-settings") return "确认恢复"
+  return "确认清除"
+}
+
+function PendingConfirm({
+  pending,
+  user,
+  saving,
+  onConfirm,
+  onCancel,
+}: {
+  pending: Pending
+  user: Parameters<typeof describeImport>[0]
+  saving: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="action-confirm">
+      <p className="note">{pendingText(pending, user)}</p>
+      <div className="inline-form">
+        <button className="button" type="button" disabled={saving} onClick={onConfirm}>
+          {confirmLabel(pending)}
+        </button>
+        <button className="button button-secondary" type="button" disabled={saving} onClick={onCancel}>
+          取消
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function download(envelope: TransferEnvelope, itemName?: string) {
@@ -244,6 +312,7 @@ function TypeSection<T extends RandomTable | Entry | Generator>({
   onExportOne,
   onParsed,
   onError,
+  confirm,
 }: {
   title: string
   scope: Extract<TransferScope, "tables" | "entries" | "generators">
@@ -254,6 +323,7 @@ function TypeSection<T extends RandomTable | Entry | Generator>({
   onExportOne: (record: T) => void
   onParsed: (envelope: TransferEnvelope) => void
   onError: (message: string) => void
+  confirm?: ReactNode
 }) {
   return (
     <>
@@ -279,6 +349,7 @@ function TypeSection<T extends RandomTable | Entry | Generator>({
           onError={onError}
         />
       </div>
+      {confirm}
       {records.length === 0 ? (
         <p className="note">{empty}</p>
       ) : (

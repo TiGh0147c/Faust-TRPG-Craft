@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { readTableForm, readTablesTrace, writeTablesTrace } from "../schemes/pageTraces.ts"
 import { useCatalog } from "../storage/useCatalog.ts"
 import type { DiceRollResult } from "../../types/dice.ts"
 import type { TableRollResult, TableSequenceResult } from "../../types/table.ts"
@@ -7,11 +8,15 @@ import { drawCollectionTable, drawTable, filterTables, matchTableInput, orderCol
 export function useRandomTables() {
   const catalog = useCatalog()
   const tables = catalog.tables
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [keyword, setKeyword] = useState("")
-  const [category, setCategory] = useState("")
-  const [tag, setTag] = useState("")
-  const [rangeInput, setRangeInput] = useState("")
+  const [restored] = useState(readTablesTrace)
+  const [selectedId, setSelectedId] = useState<string | null>(restored.selectedId)
+  const [keyword, setKeyword] = useState(restored.keyword)
+  const [category, setCategory] = useState(restored.category)
+  const [tag, setTag] = useState(restored.tag)
+  const [rangeInput, setRangeInput] = useState(() =>
+    restored.selectedId ? (readTableForm(restored.selectedId).rangeInput ?? "") : "",
+  )
+  const [syncedId, setSyncedId] = useState<string | null>(restored.selectedId)
   const [result, setResult] = useState<TableRollResult | null>(null)
   const [expressionDice, setExpressionDice] = useState<DiceRollResult | null>(null)
   const [sequence, setSequence] = useState<TableSequenceResult | null>(null)
@@ -31,6 +36,15 @@ export function useRandomTables() {
   )
   const selected =
     filtered.find((table) => table.id === selectedId) ?? (selectedId === null ? (filtered[0] ?? null) : null)
+  const activeId = selected?.id ?? null
+  if (activeId && activeId !== syncedId) {
+    setSyncedId(activeId)
+    setRangeInput(readTableForm(activeId).rangeInput ?? "")
+  }
+
+  useEffect(() => {
+    writeTablesTrace({ keyword, category, tag, selectedId })
+  }, [keyword, category, tag, selectedId])
 
   function select(id: string) {
     if (id === selectedId) return
@@ -39,7 +53,12 @@ export function useRandomTables() {
     setExpressionDice(null)
     setSequence(null)
     setActionError(null)
-    setRangeInput("")
+    setSyncedId(id)
+    setRangeInput(readTableForm(id).rangeInput ?? "")
+  }
+
+  function clearAction() {
+    setActionError(null)
   }
 
   function apply(outcome: { ok: true; result: TableRollResult } | { ok: false; message: string }) {
@@ -92,7 +111,7 @@ export function useRandomTables() {
 
   function orderSelected(ids?: readonly string[], prefix?: number) {
     if (!selected) return
-    const outcome = orderCollectionTable(selected, Math.random, ids, prefix)
+    const outcome = orderCollectionTable(selected, Math.random, ids, prefix, catalog.sortWeight)
     if (!outcome.ok) {
       setSequence(null)
       setActionError(outcome.message)
@@ -140,6 +159,7 @@ export function useRandomTables() {
     expressionDice: selected && result?.tableId === selected.id ? expressionDice : null,
     sequence: selected && sequence?.tableId === selected.id ? sequence : null,
     actionError: selected ? actionError : null,
+    clearAction,
     matchSelected,
     drawSelected,
     rollExpressionSelected,

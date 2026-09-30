@@ -1,4 +1,5 @@
 import { readRandomUnit, type RandomSource } from "../random.ts"
+import { SORT_WEIGHT_OFF, type SortWeightSetting } from "./sortWeight.ts"
 
 export const MAX_COLLECTION_SIZE = 10_000
 
@@ -28,8 +29,7 @@ export function readNamedItems(
   if (rows.length > MAX_COLLECTION_SIZE) return { ok: false, message: "元素太多，无法生成。" }
   const items: NamedCollectionItem[] = []
   for (const row of rows) {
-    const name = row.name.trim()
-    if (name === "") return { ok: false, message: "请输入元素名。" }
+    const name = row.name.trim() || `元素 ${items.length + 1}`
     const weight = readWeight(row.weight)
     if (!weight.ok) return weight
     items.push({ name, weight: weight.value })
@@ -66,6 +66,17 @@ export function readOrderCount(
   if (value < 1) return { ok: false, message: "输出个数至少为 1。" }
   if (value > size) return { ok: false, message: "输出个数不能超过集合大小。" }
   return { ok: true, value }
+}
+
+export function orderBySortWeight<T>(
+  items: readonly T[],
+  weights: readonly number[],
+  setting: SortWeightSetting = SORT_WEIGHT_OFF,
+  random: RandomSource = Math.random,
+): T[] {
+  if (!setting.enabled) return shuffleItems(items, random)
+  const ordered = shuffleByWeight(items, weights, random)
+  return setting.bias === "back" ? [...ordered].reverse() : ordered
 }
 
 export function shuffleByWeight<T>(items: readonly T[], weights: readonly number[], random: RandomSource = Math.random): T[] {
@@ -117,8 +128,12 @@ export function drawByWeight<T>(
   return { ok: true, values }
 }
 
-export function formatSequence(summary: string, values: readonly (string | number)[]): string {
-  const lines = [summary, `个数：${values.length}`]
+export function formatSequenceHeadline(action: "order" | "draw", values: readonly (string | number)[]): string {
+  return values.map(String).join(action === "order" ? " -> " : " & ")
+}
+
+export function formatSequence(summary: string, values: readonly (string | number)[], action: "order" | "draw"): string {
+  const lines = [summary, `最终结果：${formatSequenceHeadline(action, values)}`, `个数：${values.length}`]
   values.forEach((value, index) => {
     lines.push(`${index + 1}. ${value}`)
   })

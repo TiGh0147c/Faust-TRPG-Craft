@@ -39,7 +39,7 @@ export const appRoutes: AppRoute[] = [
   },
   {
     path: "/history",
-    label: "历史",
+    label: "历史记录",
     description: "查看和整理最近的结果。",
   },
   {
@@ -50,6 +50,6 @@ export const appRoutes: AppRoute[] = [
   {
     path: "/settings",
     label: "设置",
-    description: "是否使用内置数据。",
+    description: "调整工具的设置。",
   },
 ]

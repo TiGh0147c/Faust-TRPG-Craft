@@ -10,4 +10,6 @@ export type DiceRollResult = {
   subtotal: number
   modifier: number
   total: number
+  /** 触发结果补正之前的点数。未触发时不写。 */
+  uncorrectedTotal?: number
 }

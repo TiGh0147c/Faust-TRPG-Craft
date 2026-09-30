@@ -9,6 +9,8 @@ import type {
   UserDataMutation,
 } from "../../services/storage/mutateUserData.ts"
 import type { TransferEnvelope } from "../../types/transfer.ts"
+import type { SortWeightSetting } from "../../utils/collection/sortWeight.ts"
+import type { DiceFloorSetting } from "../../utils/dice/diceFloor.ts"
 
 export type CatalogValue = {
   status: "loading" | "ready" | "error"
@@ -39,6 +41,10 @@ export type CatalogValue = {
   clearHistory: () => Promise<UserDataMutation>
   showBuiltin: boolean
   setShowBuiltin: (enabled: boolean) => Promise<UserDataMutation>
+  diceFloor: DiceFloorSetting
+  setDiceFloor: (next: DiceFloorSetting) => Promise<UserDataMutation>
+  sortWeight: SortWeightSetting
+  setSortWeight: (next: SortWeightSetting) => Promise<UserDataMutation>
 }
 
 export const CatalogContext = createContext<CatalogValue | null>(null)

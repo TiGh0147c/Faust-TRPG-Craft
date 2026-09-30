@@ -84,7 +84,7 @@ export function tableSequenceHistoryDraft(result: TableSequenceResult, note = ""
     {
       kind: "table",
       input: summary,
-      output: formatSequence(summary, result.rows.map((row) => row.text)),
+      output: formatSequence(summary, result.rows.map((row) => row.text), result.action),
     },
     note,
   )
@@ -127,12 +127,17 @@ export function entryHistoryDraft(entry: Entry, note = ""): HistoryDraft {
   )
 }
 
-export function collectionHistoryDraft(input: string, values: readonly (string | number)[], note = ""): HistoryDraft {
+export function collectionHistoryDraft(
+  input: string,
+  values: readonly (string | number)[],
+  note = "",
+  action: "order" | "draw" = "order",
+): HistoryDraft {
   return attachNote(
     {
       kind: "collection",
       input,
-      output: formatSequence(input, values),
+      output: formatSequence(input, values, action),
     },
     note,
   )

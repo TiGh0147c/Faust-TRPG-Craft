@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { readGeneratorsTrace, writeGeneratorsTrace } from "../schemes/pageTraces.ts"
 import { filterGenerators } from "../../utils/generator/filterGenerators.ts"
 import { useCatalog } from "../storage/useCatalog.ts"
 import { runGenerator, type GeneratorRunResult } from "./runGenerator.ts"
@@ -6,10 +7,11 @@ import { runGenerator, type GeneratorRunResult } from "./runGenerator.ts"
 export function useGenerators() {
   const catalog = useCatalog()
   const generators = catalog.generators
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [keyword, setKeyword] = useState("")
-  const [category, setCategory] = useState("")
-  const [tag, setTag] = useState("")
+  const [restored] = useState(readGeneratorsTrace)
+  const [selectedId, setSelectedId] = useState<string | null>(restored.selectedId)
+  const [keyword, setKeyword] = useState(restored.keyword)
+  const [category, setCategory] = useState(restored.category)
+  const [tag, setTag] = useState(restored.tag)
   const [result, setResult] = useState<GeneratorRunResult | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -33,6 +35,10 @@ export function useGenerators() {
   )
   const selected =
     filtered.find((generator) => generator.id === selectedId) ?? (selectedId === null ? (filtered[0] ?? null) : null)
+
+  useEffect(() => {
+    writeGeneratorsTrace({ keyword, category, tag, selectedId })
+  }, [keyword, category, tag, selectedId])
 
   function select(id: string) {
     if (id === selectedId) return

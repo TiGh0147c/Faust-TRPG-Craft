@@ -1,9 +1,19 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { DiceBreakdown } from "../components/DiceBreakdown.tsx"
 import { HistoryNoteField } from "../components/HistoryNoteField.tsx"
+import { cardClass, moveListItem, movedSelection, useCardReorder, useListFlip, useRevealRowEnd } from "../features/cards/reorder.ts"
 import { DiceFormFields } from "../features/dice/DiceFormFields.tsx"
 import { diceComparisonHistoryDraft, diceHistoryDraft } from "../features/history/historyDrafts.ts"
 import { useDiceRoll } from "../features/dice/useDiceRoll.ts"
+import { SchemeActions } from "../features/schemes/SchemeActions.tsx"
+import {
+  compareScheme,
+  defaultDiceWorkspace,
+  parseCompareScheme,
+  readDiceWorkspace,
+  writeDiceWorkspace,
+} from "../features/schemes/compareScheme.ts"
+import { downloadJson } from "../features/storage/downloadJson.ts"
 import { useCatalog } from "../features/storage/useCatalog.ts"
 import {
   MAX_COMPARE_COUNT,
@@ -11,6 +21,7 @@ import {
   MIN_COMPARE_COUNT,
   diceForm,
   compareSlotLabel,
+  comparisonSeparator,
   formatComparisonScore,
   formatDiceComparison,
   formatDiceResult,
@@ -24,35 +35,126 @@ const PRESET_SIDES = [2, 4, 6, 8, 10, 12, 20, 100]
 
 type DiceMode = "single" | "compare"
 
-function resizeSlots(current: DiceFormValues[], count: number): DiceFormValues[] {
+type CompareSlot = DiceFormValues & { slotId: string }
+
+function newSlot(template?: DiceFormValues): CompareSlot {
+  const source = template ?? diceForm()
+  return {
+    name: "",
+    expression: source.expression,
+    sides: source.sides,
+    count: source.count,
+    modifier: source.modifier,
+    slotId: crypto.randomUUID(),
+  }
+}
+
+function resizeSlots(current: CompareSlot[], count: number, template: DiceFormValues): CompareSlot[] {
   if (count === current.length) return current
   if (count < current.length) return current.slice(0, count)
-  const added = Array.from({ length: count - current.length }, () => diceForm())
+  const added = Array.from({ length: count - current.length }, () => newSlot(template))
   return [...current, ...added]
 }
 
 export function DicePage() {
-  const dice = useDiceRoll()
   const catalog = useCatalog()
-  const [mode, setMode] = useState<DiceMode>("single")
+  const [restored] = useState(readDiceWorkspace)
+  const dice = useDiceRoll({
+    expression: restored.singleExpression,
+    sides: restored.singleSides,
+    count: restored.singleCount,
+    modifier: restored.singleModifier,
+  })
+  const [mode, setMode] = useState<DiceMode>(restored.mode)
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
-  const [note, setNote] = useState("")
-  const [singleNote, setSingleNote] = useState("")
-  const [compareNote, setCompareNote] = useState("")
-  const [compareCount, setCompareCount] = useState(String(MIN_COMPARE_COUNT))
-  const [slots, setSlots] = useState<DiceFormValues[]>(() => [diceForm(), diceForm()])
-  const [selectedSlot, setSelectedSlot] = useState(0)
-  const [draft, setDraft] = useState<DiceFormValues>(() => diceForm())
+  const [schemeError, setSchemeError] = useState<string | null>(null)
+  const [note, setNote] = useState(restored.note)
+  const [singleNote, setSingleNote] = useState(restored.singleNote)
+  const [compareNote, setCompareNote] = useState(restored.compareNote)
+  const [compareCount, setCompareCount] = useState(restored.compareCount)
+  const [slots, setSlots] = useState<CompareSlot[]>(restored.slots)
+  const [selectedSlot, setSelectedSlot] = useState(restored.selectedSlot)
+  const [draft, setDraft] = useState<DiceFormValues>(restored.draft)
   const [compareResults, setCompareResults] = useState<NamedDiceRoll[] | null>(null)
   const [compareError, setCompareError] = useState<string | null>(null)
+  const cardsRef = useRef<HTMLDivElement>(null)
+  useListFlip(cardsRef)
+  useRevealRowEnd(cardsRef, slots.length)
+  const cardDrag = useCardReorder(reorderCompareSlots)
+
+  function reorderCompareSlots(from: number, to: number) {
+    setSlots((current) => moveListItem(current, from, to))
+    setSelectedSlot((selected) => movedSelection(selected, from, to))
+  }
 
   useEffect(() => {
     if (!copied) return
     const timer = window.setTimeout(() => setCopied(false), 2000)
     return () => window.clearTimeout(timer)
   }, [copied])
+
+  useEffect(() => {
+    writeDiceWorkspace({
+      mode,
+      compareCount,
+      slots,
+      selectedSlot,
+      draft,
+      singleExpression: dice.expression,
+      singleSides: dice.customSides,
+      singleCount: dice.customCount,
+      singleModifier: dice.customModifier,
+      note,
+      singleNote,
+      compareNote,
+    })
+  }, [
+    mode,
+    compareCount,
+    slots,
+    selectedSlot,
+    draft,
+    dice.expression,
+    dice.customSides,
+    dice.customCount,
+    dice.customModifier,
+    note,
+    singleNote,
+    compareNote,
+  ])
+
+  function exportCompareScheme() {
+    downloadJson("多次比较.json", compareScheme(slots))
+  }
+
+  function importCompareScheme(text: string) {
+    const parsed = parseCompareScheme(text)
+    if (!parsed.ok) {
+      setSchemeError(parsed.message)
+      return
+    }
+    const first = parsed.slots[0]
+    setSchemeError(null)
+    setCompareError(null)
+    setCompareResults(null)
+    setSlots(parsed.slots)
+    setCompareCount(String(parsed.slots.length))
+    setSelectedSlot(0)
+    if (first) setDraft(first)
+  }
+
+  function resetCompareScheme() {
+    const next = defaultDiceWorkspace()
+    setSchemeError(null)
+    setCompareError(null)
+    setCompareResults(null)
+    setSlots(next.slots)
+    setCompareCount(next.compareCount)
+    setSelectedSlot(next.selectedSlot)
+    setDraft(next.draft)
+  }
 
   function selectMode(next: DiceMode) {
     setMode(next)
@@ -66,7 +168,7 @@ export function DicePage() {
     const parsed = readCompareCount(value)
     if (!parsed.ok) return
     setCompareError(null)
-    const nextSlots = resizeSlots(slots, parsed.value)
+    const nextSlots = resizeSlots(slots, parsed.value, draft)
     const index = Math.min(selectedSlot, nextSlots.length - 1)
     setSlots(nextSlots)
     setSelectedSlot(index)
@@ -102,14 +204,36 @@ export function DicePage() {
   }
 
   function updateSlot(index: number, next: DiceFormValues) {
-    setSlots((current) => current.map((slot, slotIndex) => (slotIndex === index ? next : slot)))
+    setSlots((current) =>
+      current.map((slot, slotIndex) => (slotIndex === index ? { ...slot, ...next, slotId: slot.slotId } : slot)),
+    )
+  }
+
+  function addCompareSlot() {
+    if (slots.length >= MAX_COMPARE_COUNT) return
+    const nextSlots = [...slots, newSlot(draft)]
+    setSlots(nextSlots)
+    setCompareCount(String(nextSlots.length))
+  }
+
+  function removeCompareSlot(index: number) {
+    if (slots.length <= MIN_COMPARE_COUNT) return
+    const nextSlots = slots.filter((_, slotIndex) => slotIndex !== index)
+    const nextIndex = Math.min(index < selectedSlot ? selectedSlot - 1 : selectedSlot, nextSlots.length - 1)
+    setSlots(nextSlots)
+    setCompareCount(String(nextSlots.length))
+    setSelectedSlot(nextIndex)
+    if (index === selectedSlot) {
+      const slot = nextSlots[nextIndex]
+      if (slot) setDraft(slot)
+    }
   }
 
   async function rollSingle() {
     setCopied(false)
     setCopyError(null)
     setHistoryError(null)
-    const outcome = dice.rollExpression()
+    const outcome = dice.rollExpression(catalog.diceFloor)
     if (!outcome.ok) return
     const shown = note.trim()
     setSingleNote(shown)
@@ -127,7 +251,11 @@ export function DicePage() {
       setCompareError(parsed.message)
       return
     }
-    const outcome = rollDiceComparison(slots.map((slot) => ({ name: slot.name, expression: slot.expression })))
+    const outcome = rollDiceComparison(
+      slots.map((slot) => ({ name: slot.name, expression: slot.expression })),
+      Math.random,
+      catalog.diceFloor,
+    )
     if (!outcome.ok) {
       setCompareResults(null)
       setCompareError(outcome.message)
@@ -243,9 +371,14 @@ export function DicePage() {
                 />
               </label>
             </div>
-            <button className="button" type="submit">
-              投掷
-            </button>
+            <div className="inline-form">
+              <button className="button button-secondary" type="button" onClick={() => dice.reset()}>
+                重置
+              </button>
+              <button className="button" type="submit">
+                投掷
+              </button>
+            </div>
           </form>
 
           <h2 className="section-label" id="preset-label">
@@ -273,7 +406,7 @@ export function DicePage() {
 
           {dice.result ? (
             <section className="panel" aria-live="polite">
-              <div className="panel-header">
+              <div className="panel-header result-header">
                 <div>
                   <p className="dice-total-label">最终结果</p>
                   <p className="dice-total">{dice.result.total}</p>
@@ -311,22 +444,49 @@ export function DicePage() {
                 onChange={(event) => updateCompareCount(event.target.value)}
               />
             </label>
-            <div className="compare-cards">
+            <div className="compare-cards" ref={cardsRef}>
               {slots.map((slot, index) => (
-                <button
-                  key={index}
-                  className={selectedSlot === index ? "compare-card is-selected" : "compare-card"}
-                  type="button"
-                  aria-pressed={selectedSlot === index}
-                  onClick={() => selectSlot(index)}
+                <div
+                  key={slot.slotId}
+                  className={cardClass(selectedSlot === index, cardDrag.dragging === index)}
+                  data-card-index={index}
+                  data-card-key={slot.slotId}
+                  onPointerDown={(event) => cardDrag.onPointerDown(index, event)}
                 >
-                  <span className="compare-card-name">{compareSlotLabel(slot.name, index)}</span>
-                  <span className="compare-card-expression">{slot.expression}</span>
-                  <span className="compare-card-meta">
-                    面数 {slot.sides} · {slot.count} 颗 · 补正 {slot.modifier}
-                  </span>
-                </button>
+                  {slots.length > MIN_COMPARE_COUNT ? (
+                    <button
+                      className="button button-secondary compare-card-remove"
+                      type="button"
+                      aria-label={`删除${compareSlotLabel(slot.name, index)}`}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => removeCompareSlot(index)}
+                    >
+                      删除
+                    </button>
+                  ) : null}
+                  <button
+                    className={slots.length > MIN_COMPARE_COUNT ? "compare-card-select has-remove" : "compare-card-select"}
+                    type="button"
+                    aria-pressed={selectedSlot === index}
+                    onClick={() => selectSlot(index)}
+                  >
+                    <span className="compare-card-name">
+                      <span className="compare-card-index">{index + 1}.</span>
+                      {compareSlotLabel(slot.name, index)}
+                    </span>
+                    <span className="compare-card-expression">{slot.expression}</span>
+                    <span className="compare-card-meta">
+                      面数 {slot.sides} · {slot.count} 颗 · 补正 {slot.modifier}
+                    </span>
+                  </button>
+                </div>
               ))}
+              {slots.length < MAX_COMPARE_COUNT ? (
+                <button className="compare-card compare-card-add" type="button" onClick={addCompareSlot}>
+                  <span className="compare-card-plus">+</span>
+                  <span>添加投掷</span>
+                </button>
+              ) : null}
             </div>
             <div className="compare-editor">
               <h2 className="section-label">正在编辑 {compareSlotLabel(slots[selectedSlot]?.name ?? "", selectedSlot)}</h2>
@@ -342,10 +502,16 @@ export function DicePage() {
                 <button className="button" type="button" onClick={() => applyDraft("current")}>
                   应用到当前骰子
                 </button>
-                <button className="button button-secondary" type="button" onClick={() => applyDraft("all")}>
+                <button className="button" type="button" onClick={() => applyDraft("all")}>
                   应用到全部骰子
                 </button>
               </div>
+              <SchemeActions
+                onExport={exportCompareScheme}
+                onImportText={importCompareScheme}
+                onReset={resetCompareScheme}
+                error={schemeError}
+              />
             </div>
             <button className="button" type="submit">
               投掷
@@ -360,22 +526,28 @@ export function DicePage() {
 
           {compareResults ? (
             <section className="panel" aria-live="polite">
-              <div className="panel-header">
-                <p className="dice-total-label">比较结果</p>
+              <div className="panel-header result-header">
+                <div>
+                  <p className="dice-total-label">比较结果</p>
+                  {compareNote ? <p className="result-note">{compareNote}</p> : null}
+                  <p className="compare-summary">
+                {compareResults.map((item, index) => (
+                  <span key={`${item.name}-${item.result.expression}-${index}`}>
+                    {index > 0 ? (
+                      <span className="result-mark">
+                        {comparisonSeparator(compareResults[index - 1]?.result.total ?? item.result.total, item.result.total)}
+                      </span>
+                    ) : null}
+                    {item.name} <span className="compare-summary-score">{formatComparisonScore(item.result.total)}</span>
+                  </span>
+                ))}
+                  </p>
+                </div>
                 <button className="button button-secondary" type="button" onClick={() => void copyComparison()}>
                   {copied ? "已复制" : "复制"}
                 </button>
               </div>
-              {compareNote ? <p className="result-note">{compareNote}</p> : null}
               {copyError ? <p className="form-error">{copyError}</p> : null}
-              <p className="compare-summary">
-                {compareResults.map((item, index) => (
-                  <span key={`${item.name}-${item.result.expression}-${index}`}>
-                    {index > 0 ? " > " : ""}
-                    {item.name} <span className="compare-summary-score">{formatComparisonScore(item.result.total)}</span>
-                  </span>
-                ))}
-              </p>
               <ol className="compare-results">
                 {compareResults.map((item, index) => (
                   <li key={`${item.name}-${item.result.expression}-${index}`}>

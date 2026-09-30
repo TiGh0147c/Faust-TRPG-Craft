@@ -1,5 +1,6 @@
 import type { DiceRollResult } from "../../types/dice.ts"
 import type { RandomSource } from "../random.ts"
+import { applyDiceFloor, DICE_FLOOR_OFF, type DiceFloorSetting } from "./diceFloor.ts"
 import { formatDiceResult } from "./formatDiceResult.ts"
 import { rollDice } from "./rollDice.ts"
 
@@ -27,7 +28,7 @@ export function readCompareCount(input: string): { ok: true; value: number } | {
 
 export function compareSlotLabel(name: string, index: number): string {
   const trimmed = name.trim()
-  return trimmed || `第 ${index + 1} 组`
+  return trimmed || `投掷 ${index + 1}`
 }
 
 export function sortNamedDiceRolls(results: readonly NamedDiceRoll[]): NamedDiceRoll[] {
@@ -40,12 +41,13 @@ export function sortNamedDiceRolls(results: readonly NamedDiceRoll[]): NamedDice
 export function rollDiceComparison(
   entries: readonly CompareEntry[],
   random: RandomSource = Math.random,
+  floor: DiceFloorSetting = DICE_FLOOR_OFF,
 ): { ok: true; ordered: NamedDiceRoll[]; results: NamedDiceRoll[] } | { ok: false; message: string } {
   const rolled: NamedDiceRoll[] = []
   for (const [index, entry] of entries.entries()) {
     const outcome = rollDice(entry.expression, random)
     if (!outcome.ok) return { ok: false, message: `${compareSlotLabel(entry.name, index)}：${outcome.message}` }
-    rolled.push({ name: compareSlotLabel(entry.name, index), result: outcome.result })
+    rolled.push({ name: compareSlotLabel(entry.name, index), result: applyDiceFloor(outcome.result, floor) })
   }
   return {
     ok: true,
@@ -58,8 +60,19 @@ export function formatComparisonScore(total: number): string {
   return `[ ${total} ]`
 }
 
+export function comparisonSeparator(previous: number, current: number): string {
+  return previous === current ? " = " : " > "
+}
+
 export function formatComparisonSummary(results: readonly NamedDiceRoll[]): string {
-  return results.map((item) => `${item.name} ${formatComparisonScore(item.result.total)}`).join(" > ")
+  return results
+    .map((item, index) => {
+      const score = `${item.name} ${formatComparisonScore(item.result.total)}`
+      const previous = results[index - 1]
+      if (!previous) return score
+      return `${comparisonSeparator(previous.result.total, item.result.total)}${score}`
+    })
+    .join("")
 }
 
 export function formatDiceComparison(results: readonly NamedDiceRoll[]): string {
@@ -69,7 +82,7 @@ export function formatDiceComparison(results: readonly NamedDiceRoll[]): string 
       return [`${index + 1}. ${item.name}`, ...lines].join("\n")
     })
     .join("\n\n")
-  return `${formatComparisonSummary(results)}\n\n${details}`
+  return `最终结果：${formatComparisonSummary(results)}\n\n${details}`
 }
 
 export function formatComparisonInput(ordered: readonly NamedDiceRoll[]): string {

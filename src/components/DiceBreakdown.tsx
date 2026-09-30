@@ -1,5 +1,5 @@
 import type { DiceRollResult } from "../types/dice.ts"
-import { formatModifier } from "../utils/dice/formatDiceResult.ts"
+import { formatFinalResult, formatModifier } from "../utils/dice/formatDiceResult.ts"
 
 export function DiceBreakdown({ result }: { result: DiceRollResult }) {
   return (
@@ -24,7 +24,7 @@ export function DiceBreakdown({ result }: { result: DiceRollResult }) {
         </div>
         <div>
           <dt>最终结果</dt>
-          <dd>{result.total}</dd>
+          <dd>{formatFinalResult(result)}</dd>
         </div>
       </dl>
     </>

@@ -1,5 +1,6 @@
 import type { RandomTable, TableSequenceResult } from "../../types/table.ts"
-import { drawByWeight, shuffleByWeight } from "../collection/orderCollection.ts"
+import { drawByWeight, orderBySortWeight } from "../collection/orderCollection.ts"
+import { SORT_WEIGHT_OFF, type SortWeightSetting } from "../collection/sortWeight.ts"
 import type { RandomSource } from "../random.ts"
 
 export function orderCollectionTable(
@@ -7,13 +8,15 @@ export function orderCollectionTable(
   random: RandomSource = Math.random,
   ids?: readonly string[],
   prefix?: number,
+  sortWeight: SortWeightSetting = SORT_WEIGHT_OFF,
 ): { ok: true; result: TableSequenceResult } | { ok: false; message: string } {
   if (table.mode !== "collection") return { ok: false, message: "这张表不是集合。" }
   const picked = pickEntries(table, ids)
   if (!picked.ok) return picked
-  const ordered = shuffleByWeight(
+  const ordered = orderBySortWeight(
     picked.entries,
     picked.entries.map((entry) => entry.weight),
+    sortWeight,
     random,
   )
   if (prefix === undefined) {
@@ -60,7 +63,7 @@ function pickEntries(table: RandomTable, ids: readonly string[] | undefined) {
   if (table.mode !== "collection") return { ok: false as const, message: "这张表不是集合。" }
   const entries = ids ? table.entries.filter((entry) => ids.includes(entry.id)) : table.entries
   if (entries.length === 0) {
-    return { ok: false as const, message: ids ? "请至少选择一项。" : "这张表没有可抽取的项目。" }
+    return { ok: false as const, message: ids ? "请至少开启一项。" : "这张表没有可抽取的项目。" }
   }
   if (entries.some((entry) => !Number.isFinite(entry.weight) || entry.weight <= 0)) {
     return { ok: false as const, message: "权重必须大于 0。" }

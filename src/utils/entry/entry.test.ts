@@ -57,7 +57,7 @@ describe("resolveLinkedEntry", () => {
       entry: exampleEntry,
     })
     expect(formatTableResult(matched.result, exampleEntry)).toBe(
-      ["城市夜间事件", "数值：73", "区间：61-80", "结果：遭遇突发事件", "词条：异常踪迹", "在街角发现异常踪迹"].join(
+      ["城市夜间事件", "数值：73", "区间：61 - 80", "结果：遭遇突发事件", "词条：异常踪迹", "在街角发现异常踪迹"].join(
         "\n",
       ),
     )

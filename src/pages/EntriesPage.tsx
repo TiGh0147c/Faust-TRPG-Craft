@@ -5,6 +5,7 @@ import { EntryEditor } from "../features/entries/EntryEditor.tsx"
 import { entryHistoryDraft } from "../features/history/historyDrafts.ts"
 import { useEntries } from "../features/entries/useEntries.ts"
 import { RecordTransferButtons } from "../features/storage/RecordTransferButtons.tsx"
+import { readEntriesTrace, writeEntriesTrace } from "../features/schemes/pageTraces.ts"
 import { useCatalog } from "../features/storage/useCatalog.ts"
 import type { EntryDraft } from "../services/storage/mutateUserData.ts"
 import { formatEntry } from "../utils/entry/index.ts"
@@ -17,7 +18,7 @@ export function EntriesPage() {
   const [editor, setEditor] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [note, setNote] = useState("")
+  const [note, setNote] = useState(() => readEntriesTrace().note)
   const [historyError, setHistoryError] = useState<string | null>(null)
 
   function run(action: () => void) {
@@ -41,6 +42,10 @@ export function EntriesPage() {
     const timer = window.setTimeout(() => setCopied(false), 2000)
     return () => window.clearTimeout(timer)
   }, [copied])
+
+  useEffect(() => {
+    writeEntriesTrace({ note })
+  }, [note])
 
   function openEntry(id: string | undefined) {
     if (!id) return

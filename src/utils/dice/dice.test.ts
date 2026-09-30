@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { applyDiceFloor } from "./diceFloor.ts"
 import { formatDiceResult } from "./formatDiceResult.ts"
 import {
   MAX_DICE_COUNT,
@@ -150,5 +151,52 @@ describe("formatDiceResult", () => {
         total: 11,
       }),
     ).toBe(["4d6-1", "骰子：1、4、6、1", "基础总值：12", "修正值：-1", "最终结果：11"].join("\n"))
+  })
+
+  it("shows the value before a floor correction", () => {
+    expect(
+      formatDiceResult({
+        expression: "1d20-100",
+        rolls: [{ sides: 20, value: 8 }],
+        subtotal: 8,
+        modifier: -100,
+        total: 1,
+        uncorrectedTotal: -92,
+      }),
+    ).toContain("最终结果：1 [由 -92 触发结果补正]")
+  })
+})
+
+describe("applyDiceFloor", () => {
+  const rolled = {
+    expression: "1d20-100",
+    rolls: [{ sides: 20, value: 8 }],
+    subtotal: 8,
+    modifier: -100,
+    total: -92,
+  }
+
+  it("leaves the total alone while the setting is off", () => {
+    expect(applyDiceFloor(rolled, { enabled: false, mode: "positive" })).toEqual(rolled)
+  })
+
+  it("raises a non-positive total to 1", () => {
+    expect(applyDiceFloor(rolled, { enabled: true, mode: "positive" })).toMatchObject({
+      total: 1,
+      uncorrectedTotal: -92,
+    })
+    expect(applyDiceFloor({ ...rolled, total: 0 }, { enabled: true, mode: "positive" })).toMatchObject({
+      total: 1,
+      uncorrectedTotal: 0,
+    })
+    expect(applyDiceFloor({ ...rolled, total: 4 }, { enabled: true, mode: "positive" }).uncorrectedTotal).toBeUndefined()
+  })
+
+  it("raises a negative total to 0 and keeps zero", () => {
+    expect(applyDiceFloor(rolled, { enabled: true, mode: "nonnegative" })).toMatchObject({
+      total: 0,
+      uncorrectedTotal: -92,
+    })
+    expect(applyDiceFloor({ ...rolled, total: 0 }, { enabled: true, mode: "nonnegative" }).uncorrectedTotal).toBeUndefined()
   })
 })

@@ -1,6 +1,7 @@
 export {
   TABLE_COVERAGE_ERROR,
   assignedRanges,
+  defaultRangeExpression,
   formatAssignedSpan,
   rollTableExpression,
 } from "./assignedRanges.ts"

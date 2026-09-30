@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { DiceBreakdown } from "../components/DiceBreakdown.tsx"
+import { ResultMarks } from "../components/ResultMarks.tsx"
 import { ImportFileButton } from "../features/storage/ImportFileButton.tsx"
 import { downloadJson } from "../features/storage/downloadJson.ts"
 import { filterHistory, formatHistoryTime, HISTORY_KIND_LABEL } from "../features/history/filterHistory.ts"
+import { splitHistoryOutput } from "../features/history/splitHistoryOutput.ts"
 import { useCatalog } from "../features/storage/useCatalog.ts"
 import { describeImport, exportHistoryMerge, exportHistorySnapshot, transferFilename } from "../services/storage/transfer.ts"
 import type { HistoryKind, HistoryRecord } from "../types/history.ts"
@@ -23,6 +25,7 @@ export function HistoryPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [expandedIds, setExpandedIds] = useState<string[]>([])
   const [pending, setPending] = useState<HistoryPending | null>(null)
   const [saving, setSaving] = useState(false)
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(20)
@@ -264,7 +267,11 @@ export function HistoryPage() {
             <p className="note">没有符合条件的历史记录。</p>
           ) : (
             <ul className="history-list">
-              {pageRecords.map((record) => (
+              {pageRecords.map((record) => {
+                const parts = splitHistoryOutput(record.output)
+                const expanded = expandedIds.includes(record.id)
+                const canExpand = parts.detail.length > 0 || record.diceResult !== undefined
+                return (
                 <li key={record.id}>
                   <div className="history-row">
                     <input
@@ -293,16 +300,38 @@ export function HistoryPage() {
                           <button className="button button-secondary" type="button" onClick={() => void removeRecord(record.id)}>
                             删除
                           </button>
+                          {canExpand ? (
+                            <button
+                              className="button button-secondary"
+                              type="button"
+                              aria-expanded={expanded}
+                              onClick={() =>
+                                setExpandedIds((current) =>
+                                  current.includes(record.id) ? current.filter((id) => id !== record.id) : [...current, record.id],
+                                )
+                              }
+                            >
+                              {expanded ? "收起" : "展开"}
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                       <p className="table-meta">输入：{record.input}</p>
                       {record.note ? <p className="table-meta">备注：{record.note}</p> : null}
-                      <p className="history-output">{record.output}</p>
-                      {record.diceResult ? <DiceBreakdown result={record.diceResult} /> : null}
+                      <p className="history-output">
+                        <ResultMarks text={parts.preview} />
+                      </p>
+                      {expanded && parts.detail ? (
+                        <p className="history-output">
+                          <ResultMarks text={parts.detail} />
+                        </p>
+                      ) : null}
+                      {expanded && record.diceResult ? <DiceBreakdown result={record.diceResult} /> : null}
                     </div>
                   </div>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
 
@@ -317,13 +346,10 @@ export function HistoryPage() {
             />
           ) : null}
 
-          <h2 className="section-label">清空历史</h2>
-          <p className="note">只删除历史记录，用户词条和随机表会保留。</p>
-          {pending?.kind === "clear" ? (
-            <ConfirmHistory pending={pending} user={catalog.user} saving={saving} onConfirm={() => void confirmPending()} onCancel={() => setPending(null)} />
-          ) : (
+          <h2 className="section-label">清除所有历史记录</h2>
+          <div className="action-row">
             <button
-              className="button button-secondary"
+              className="button"
               type="button"
               onClick={() => {
                 setActionError(null)
@@ -331,9 +357,12 @@ export function HistoryPage() {
                 setPending({ kind: "clear" })
               }}
             >
-              清空历史
+              清除所有历史记录
             </button>
-          )}
+          </div>
+          {pending?.kind === "clear" ? (
+            <ConfirmHistory pending={pending} user={catalog.user} saving={saving} onConfirm={() => void confirmPending()} onCancel={() => setPending(null)} />
+          ) : null}
         </>
       ) : null}
     </section>
@@ -398,14 +427,16 @@ function ConfirmHistory({
   onCancel: () => void
 }) {
   return (
-    <div className="inline-form">
-      <p className="note transfer-status">{pendingText(pending, user)}</p>
-      <button className="button" type="button" disabled={saving} onClick={onConfirm}>
-        {pending.kind === "import" ? "确认导入" : pending.kind === "delete" ? "确认删除" : "确认清空"}
-      </button>
-      <button className="button button-secondary" type="button" disabled={saving} onClick={onCancel}>
-        取消
-      </button>
+    <div className="action-confirm">
+      <p className="note">{pendingText(pending, user)}</p>
+      <div className="inline-form">
+        <button className="button" type="button" disabled={saving} onClick={onConfirm}>
+          {pending.kind === "import" ? "确认导入" : pending.kind === "delete" ? "确认删除" : "确认清除"}
+        </button>
+        <button className="button button-secondary" type="button" disabled={saving} onClick={onCancel}>
+          取消
+        </button>
+      </div>
     </div>
   )
 }
@@ -413,5 +444,5 @@ function ConfirmHistory({
 function pendingText(pending: HistoryPending, user: Parameters<typeof describeImport>[0]): string {
   if (pending.kind === "import") return describeImport(user, pending.envelope)
   if (pending.kind === "delete") return `将删除选中的 ${pending.ids.length} 条历史记录。`
-  return "将清空全部历史。用户随机表、词条和生成器会保留。"
+  return "清除所有历史记录将清除用户所有的历史记录。"
 }

@@ -35,7 +35,7 @@ describe("dice comparison", () => {
     expect(outcome.results.map((item) => item.result.total)).toEqual([20, 5, 1])
     expect(outcome.results.map((item) => item.name)).toEqual(["甲", "丙", "乙"])
     const formatted = formatDiceComparison(outcome.results).split("\n\n")
-    expect(formatted[0]).toBe("甲 [ 20 ] > 丙 [ 5 ] > 乙 [ 1 ]")
+    expect(formatted[0]).toBe("最终结果：甲 [ 20 ] > 丙 [ 5 ] > 乙 [ 1 ]")
     expect(formatted.slice(1).map((block) => block.split("\n")[0])).toEqual(["1. 甲", "2. 丙", "3. 乙"])
   })
 
@@ -51,6 +51,7 @@ describe("dice comparison", () => {
     if (!outcome.ok) return
     expect(outcome.results.map((item) => item.result.expression)).toEqual(["1d8", "1d6"])
     expect(outcome.results.map((item) => item.name)).toEqual(["先", "后"])
+    expect(formatDiceComparison(outcome.results).split("\n\n")[0]).toBe("最终结果：先 [ 1 ] = 后 [ 1 ]")
   })
 
   it("stops at the first expression that cannot be rolled", () => {
@@ -61,7 +62,7 @@ describe("dice comparison", () => {
       ]),
     ).toMatchObject({
       ok: false,
-      message: "第 2 组：无法识别表达式。示例：1d20、2d6+3、4d6-1。",
+      message: "投掷 2：无法识别表达式。示例：1d20、2d6+3、4d6-1。",
     })
     expect(
       rollDiceComparison([

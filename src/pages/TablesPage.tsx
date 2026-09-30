@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { DiceBreakdown } from "../components/DiceBreakdown.tsx"
+import { SequenceHeadline } from "../components/ResultMarks.tsx"
 import { HistoryNoteField } from "../components/HistoryNoteField.tsx"
 import { SourceColumn } from "../components/SourceColumn.tsx"
 import { useDiceRoll } from "../features/dice/useDiceRoll.ts"
 import { sequenceSummary, tableHistoryDraft, tableSequenceHistoryDraft } from "../features/history/historyDrafts.ts"
 import { RecordTransferButtons } from "../features/storage/RecordTransferButtons.tsx"
+import { readTableForm, readTablesTrace, writeTableForm, writeTablesTrace, type TableFormTrace } from "../features/schemes/pageTraces.ts"
 import { useCatalog } from "../features/storage/useCatalog.ts"
 import { TableEditor } from "../features/tables/TableEditor.tsx"
 import { useRandomTables } from "../features/tables/useRandomTables.ts"
@@ -13,7 +15,7 @@ import type { RandomTable } from "../types/table.ts"
 import { resolveLinkedEntry, type LinkedEntry } from "../utils/entry/index.ts"
 import { formatSequence, readOrderCount } from "../utils/collection/orderCollection.ts"
 import { MAX_DIE_SIDES, formatDiceResult } from "../utils/dice/index.ts"
-import { assignedRanges, formatAssignedSpan, formatTableResult } from "../utils/table/index.ts"
+import { assignedRanges, defaultRangeExpression, formatAssignedSpan, formatTableResult } from "../utils/table/index.ts"
 import type { DiceRollResult } from "../types/dice.ts"
 import type { HistoryRecord } from "../types/history.ts"
 import type { TableSequenceResult } from "../types/table.ts"
@@ -49,7 +51,7 @@ export function TablesPage() {
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
-  const [note, setNote] = useState("")
+  const [note, setNote] = useState(() => readTablesTrace().note)
   const [resultNote, setResultNote] = useState("")
   const [editor, setEditor] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -143,6 +145,10 @@ export function TablesPage() {
   }
 
   useEffect(() => {
+    writeTablesTrace({ note })
+  }, [note])
+
+  useEffect(() => {
     if (!copied) return
     const timer = window.setTimeout(() => setCopied(false), 2000)
     return () => window.clearTimeout(timer)
@@ -154,7 +160,11 @@ export function TablesPage() {
     if (!sequence && !rolled) return
     try {
       const text = sequence
-        ? withNote(formatSequence(sequenceSummary(sequence), sequence.rows.map((row) => row.text)), resultNote, "first")
+        ? withNote(
+            formatSequence(sequenceSummary(sequence), sequence.rows.map((row) => row.text), sequence.action),
+            resultNote,
+            "first",
+          )
         : rolled
           ? withNote(
               tables.expressionDice
@@ -274,7 +284,7 @@ export function TablesPage() {
             <TableDetail
               actions={
                 tables.selected.origin === "user" ? (
-                  <div className="inline-form">
+                  <>
                     <TableTransfer tableId={tables.selected.id} />
                     <button className="button button-secondary" type="button" onClick={() => openTable(tables.selected?.id)}>
                       编辑
@@ -286,7 +296,7 @@ export function TablesPage() {
                     >
                       删除
                     </button>
-                  </div>
+                  </>
                 ) : null
               }
               key={tables.selected.id}
@@ -311,6 +321,7 @@ export function TablesPage() {
               copied={copied}
               copyError={copyError}
               onCopy={() => void copyResult()}
+              onClearAction={tables.clearAction}
               linked={linked}
               entryLoadError={catalog.status === "error" ? catalog.loadError : null}
               historyError={historyError}
@@ -348,6 +359,7 @@ type TableDetailProps = {
   copied: boolean
   copyError: string | null
   onCopy: () => void
+  onClearAction: () => void
   linked: LinkedEntry
   entryLoadError: string | null
   historyError: string | null
@@ -378,25 +390,77 @@ function TableDetail({
   copied,
   copyError,
   onCopy,
+  onClearAction,
   linked,
   entryLoadError,
   historyError,
   resultNote,
 }: TableDetailProps) {
-  const dice = useDiceRoll()
-  const [mode, setMode] = useState<TableDrawMode | "">("")
-  const [drawCount, setDrawCount] = useState("1")
-  const [drawLimit, setDrawLimit] = useState("1")
-  const [orderMode, setOrderMode] = useState<"all" | "prefix">("all")
-  const [orderCount, setOrderCount] = useState("1")
+  const [savedForm] = useState(() => readTableForm(table.id))
+  const fallbackExpression = table.mode === "range" ? defaultRangeExpression(table) : "1d100"
+  const dice = useDiceRoll({
+    expression: savedForm.expression || fallbackExpression,
+    sides: savedForm.sides,
+    count: savedForm.count,
+    modifier: savedForm.modifier,
+  })
+  const [mode, setMode] = useState<TableDrawMode | "">(savedMode(table, savedForm.mode))
+  const [drawCount, setDrawCount] = useState(savedForm.drawCount ?? "1")
+  const [drawLimit, setDrawLimit] = useState(savedForm.drawLimit ?? "1")
+  const [orderMode, setOrderMode] = useState<"all" | "prefix">(savedForm.orderMode === "prefix" ? "prefix" : "all")
+  const [orderCount, setOrderCount] = useState(savedForm.orderCount ?? "1")
   const [orderError, setOrderError] = useState<string | null>(null)
-  const [included, setIncluded] = useState<string[]>(() =>
-    table.mode === "collection" ? table.entries.map((entry) => entry.id) : [],
-  )
-  const weightTotal = table.mode === "collection" ? table.entries.reduce((sum, entry) => sum + entry.weight, 0) : 0
+  const [included, setIncluded] = useState<string[]>(() => initialIncluded(table, savedForm.included))
+
+  useEffect(() => {
+    const form: TableFormTrace = {
+      mode,
+      rangeInput,
+      expression: dice.expression,
+      sides: dice.customSides,
+      count: dice.customCount,
+      modifier: dice.customModifier,
+      drawCount,
+      drawLimit,
+      orderMode,
+      orderCount,
+      included,
+    }
+    writeTableForm(table.id, form)
+  }, [
+    table.id,
+    mode,
+    rangeInput,
+    dice.expression,
+    dice.customSides,
+    dice.customCount,
+    dice.customModifier,
+    drawCount,
+    drawLimit,
+    orderMode,
+    orderCount,
+    included,
+  ])
+
+  function resetForm() {
+    const expression = table.mode === "range" ? defaultRangeExpression(table) : "1d100"
+    setMode(table.mode === "range" ? "expression" : "")
+    setDrawCount("1")
+    setDrawLimit("1")
+    setOrderMode("all")
+    setOrderCount("1")
+    setOrderError(null)
+    setIncluded(table.mode === "collection" ? table.entries.map((entry) => entry.id) : [])
+    onRangeInput("")
+    dice.reset(expression)
+    onClearAction()
+  }
+  const weightTotal =
+    table.mode === "collection"
+      ? table.entries.reduce((sum, entry) => sum + (included.includes(entry.id) ? entry.weight : 0), 0)
+      : 0
   const assigned = table.mode === "range" ? assignedRanges(table) : null
   const matchedIds = new Set(sequence ? sequence.rows.map((row) => row.id) : resultRowId ? [resultRowId] : [])
-  const sequenceLabel = sequence ? sequenceSummary(sequence) : ""
 
   function chooseMode(next: TableDrawMode) {
     setMode(next)
@@ -406,7 +470,12 @@ function TableDetail({
     <article className="panel">
       <div className="panel-header">
         <h2>{table.name}</h2>
-        {actions}
+        <div className="inline-form">
+          {actions}
+          <button className="button button-secondary" type="button" onClick={resetForm}>
+            重置
+          </button>
+        </div>
       </div>
       {formError ? (
         <p className="form-error" role="alert">
@@ -419,12 +488,32 @@ function TableDetail({
         {table.tags.length > 0 ? ` · ${table.tags.join("、")}` : ""}
       </p>
       <ul className={table.mode === "collection" ? "table-entry-list weight-list" : "table-entry-list"}>
-        {table.entries.map((entry) => (
-          <li key={entry.id} className={matchedIds.has(entry.id) ? "is-match" : undefined}>
-            <span>{rowLabel(entry, weightTotal)}</span>
-            <span>{entry.text}</span>
-          </li>
-        ))}
+        {table.entries.map((entry) => {
+          const participating = table.mode !== "collection" || included.includes(entry.id)
+          const rowClass = [matchedIds.has(entry.id) ? "is-match" : "", participating ? "" : "is-excluded"]
+            .filter(Boolean)
+            .join(" ")
+          return (
+            <li key={entry.id} className={rowClass || undefined}>
+              <span>{rowLabel(entry, weightTotal, participating)}</span>
+              <span>{entry.text}</span>
+              {table.mode === "collection" ? (
+                <input
+                  className="switch"
+                  type="checkbox"
+                  role="switch"
+                  aria-label={`${entry.text}参加排序与元素抽取`}
+                  checked={participating}
+                  onChange={() =>
+                    setIncluded((current) =>
+                      current.includes(entry.id) ? current.filter((id) => id !== entry.id) : [...current, entry.id],
+                    )
+                  }
+                />
+              ) : null}
+            </li>
+          )
+        })}
       </ul>
 
       {assigned && !assigned.ok ? <p className="note">{assigned.message}</p> : null}
@@ -439,22 +528,6 @@ function TableDetail({
             value={note}
             onChange={onNote}
           />
-          <div className="choice-cards" role="group" aria-label="参与排序和抽取的项目">
-            {table.entries.map((entry) => (
-              <label key={entry.id} className={included.includes(entry.id) ? "choice-card is-selected" : "choice-card"}>
-                <input
-                  type="checkbox"
-                  checked={included.includes(entry.id)}
-                  onChange={() =>
-                    setIncluded((current) =>
-                      current.includes(entry.id) ? current.filter((id) => id !== entry.id) : [...current, entry.id],
-                    )
-                  }
-                />
-                <span>{entry.text}</span>
-              </label>
-            ))}
-          </div>
           <div className="mode-choices" role="group" aria-label="排序方式">
             <button
               className="button button-secondary"
@@ -517,36 +590,38 @@ function TableDetail({
             </p>
           ) : null}
           <form
-            className="inline-form"
+            className="draw-form"
             onSubmit={(event) => {
               event.preventDefault()
               onDrawRows(drawCount, drawLimit, included)
             }}
           >
-            <label className="field" htmlFor="table-draw-count">
-              抽取个数
-              <input
-                id="table-draw-count"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                value={drawCount}
-                onChange={(event) => setDrawCount(event.target.value)}
-              />
-            </label>
-            <label className="field" htmlFor="table-draw-limit">
-              每项最多抽取次数
-              <input
-                id="table-draw-limit"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                value={drawLimit}
-                onChange={(event) => setDrawLimit(event.target.value)}
-              />
-            </label>
-            <button className="button button-secondary" type="submit">
-              抽取
+            <div className="inline-form">
+              <label className="field" htmlFor="table-draw-count">
+                抽取个数
+                <input
+                  id="table-draw-count"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={drawCount}
+                  onChange={(event) => setDrawCount(event.target.value)}
+                />
+              </label>
+              <label className="field" htmlFor="table-draw-limit">
+                每项最多抽取次数
+                <input
+                  id="table-draw-limit"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={drawLimit}
+                  onChange={(event) => setDrawLimit(event.target.value)}
+                />
+              </label>
+            </div>
+            <button className="button" type="submit">
+              元素抽取
             </button>
           </form>
         </>
@@ -739,15 +814,19 @@ function TableDetail({
 
       {sequence ? (
         <section className="panel" aria-live="polite">
-          {resultNote ? <p className="result-note">{resultNote}</p> : null}
-          <div className="panel-header">
-            <p className="dice-total-label">{sequence.action === "order" ? "随机排序" : "抽取结果"}</p>
+          <div className="panel-header result-header">
+            <div>
+              <p className="dice-total-label">最终结果</p>
+              <p className="dice-total">
+                <SequenceHeadline action={sequence.action} values={sequence.rows.map((row) => row.text)} />
+              </p>
+              {resultNote ? <p className="result-note">{resultNote}</p> : null}
+            </div>
             <button className="button button-secondary" type="button" onClick={onCopy}>
               {copied ? "已复制" : "复制"}
             </button>
           </div>
           {copyError ? <p className="form-error">{copyError}</p> : null}
-          <p className="dice-expression">{sequenceLabel}</p>
           <h3 className="section-label">每一项</h3>
           <ul className="dice-rolls">
             {sequence.rows.map((row, index) => (
@@ -781,8 +860,20 @@ function withNote(text: string, note: string, placement: "first" | "after-result
   return lines.join("\n")
 }
 
-function rowLabel(entry: RandomTable["entries"][number], weightTotal: number): string {
-  if ("weight" in entry) return `${entry.weight} / ${weightTotal}`
+function savedMode(table: RandomTable, value: TableFormTrace["mode"] | undefined): TableDrawMode | "" {
+  if (value === "match" || value === "random" || value === "expression") return value
+  return table.mode === "range" ? "expression" : ""
+}
+
+function initialIncluded(table: RandomTable, saved: string[] | undefined): string[] {
+  if (table.mode !== "collection") return []
+  if (!saved) return table.entries.map((entry) => entry.id)
+  const known = new Set(table.entries.map((entry) => entry.id))
+  return saved.filter((id) => known.has(id))
+}
+
+function rowLabel(entry: RandomTable["entries"][number], weightTotal: number, participating = true): string {
+  if ("weight" in entry) return `${participating ? entry.weight : 0} / ${weightTotal}`
   if ("min" in entry && "max" in entry) return formatAssignedSpan(entry.min, entry.max)
   return ""
 }

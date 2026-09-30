@@ -19,7 +19,9 @@ import {
   updateTable,
 } from "../../services/storage/mutateUserData.ts"
 import type { EntryDraft, GeneratorDraft, TableDraft } from "../../services/storage/mutateUserData.ts"
-import { showBuiltinEnabled, writeShowBuiltin } from "../../services/storage/appSettings.ts"
+import { readDiceFloor, readSortWeight, showBuiltinEnabled, writeDiceFloor, writeShowBuiltin, writeSortWeight } from "../../services/storage/appSettings.ts"
+import type { SortWeightSetting } from "../../utils/collection/sortWeight.ts"
+import type { DiceFloorSetting } from "../../utils/dice/diceFloor.ts"
 import { applyTransfer, builtinIdsFrom } from "../../services/storage/transfer.ts"
 import { createEmptyUserData, type BuiltinData, type UserData } from "../../types/data.ts"
 import type { TransferEnvelope } from "../../types/transfer.ts"
@@ -79,6 +81,8 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
 
   const available = useMemo(() => mergeCatalog(builtin, user), [builtin, user])
   const showBuiltin = showBuiltinEnabled(user.settings)
+  const diceFloor = readDiceFloor(user.settings)
+  const sortWeight = readSortWeight(user.settings)
   const tables = useMemo(() => visibleRecords(available.tables, showBuiltin), [available.tables, showBuiltin])
   const entries = useMemo(() => visibleRecords(available.entries, showBuiltin), [available.entries, showBuiltin])
   const generators = useMemo(
@@ -190,6 +194,14 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     return enqueue((current) => writeShowBuiltin(current, enabled))
   }
 
+  function saveDiceFloor(next: DiceFloorSetting): Promise<UserDataMutation> {
+    return enqueue((current) => writeDiceFloor(current, next))
+  }
+
+  function saveSortWeight(next: SortWeightSetting): Promise<UserDataMutation> {
+    return enqueue((current) => writeSortWeight(current, next))
+  }
+
   const value: CatalogValue = {
     status,
     loadError,
@@ -219,6 +231,10 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     clearHistory: removeAllHistory,
     showBuiltin,
     setShowBuiltin: saveShowBuiltin,
+    diceFloor,
+    setDiceFloor: saveDiceFloor,
+    sortWeight,
+    setSortWeight: saveSortWeight,
   }
 
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>

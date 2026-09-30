@@ -1,13 +1,32 @@
 import { useState } from "react"
 import type { DiceRollResult } from "../../types/dice.ts"
-import { composeDiceExpression, expressionWithSides, formatDiceExpression, parseDiceExpression, rollDice } from "../../utils/dice/index.ts"
+import {
+  applyDiceFloor,
+  composeDiceExpression,
+  DICE_FLOOR_OFF,
+  expressionWithSides,
+  formatDiceExpression,
+  parseDiceExpression,
+  rollDice,
+  type DiceFloorSetting,
+} from "../../utils/dice/index.ts"
 
-export function useDiceRoll(initialExpression = "1d20") {
-  const initial = parseDiceExpression(initialExpression)
+export const DEFAULT_DICE_EXPRESSION = "1d100"
+
+export function useDiceRoll(initial?: string | { expression?: string; sides?: string; count?: string; modifier?: string }) {
+  const fields = typeof initial === "string" ? { expression: initial } : initial
+  const initialExpression = fields?.expression ?? DEFAULT_DICE_EXPRESSION
+  const initialParsed = parseDiceExpression(initialExpression)
   const [expression, setExpression] = useState(initialExpression)
-  const [customSides, setCustomSides] = useState(initial.ok ? String(initial.value.sides) : "20")
-  const [customCount, setCustomCount] = useState(initial.ok ? String(initial.value.count) : "1")
-  const [customModifier, setCustomModifier] = useState(initial.ok ? String(initial.value.modifier) : "0")
+  const [customSides, setCustomSides] = useState(
+    fields?.sides ?? (initialParsed.ok ? String(initialParsed.value.sides) : "100"),
+  )
+  const [customCount, setCustomCount] = useState(
+    fields?.count ?? (initialParsed.ok ? String(initialParsed.value.count) : "1"),
+  )
+  const [customModifier, setCustomModifier] = useState(
+    fields?.modifier ?? (initialParsed.ok ? String(initialParsed.value.modifier) : "0"),
+  )
   const [result, setResult] = useState<DiceRollResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,22 +75,34 @@ export function useDiceRoll(initialExpression = "1d20") {
     applyParsed(next)
   }
 
-  function rollInput(input: string) {
+  function rollInput(input: string, floor: DiceFloorSetting) {
     const outcome = rollDice(input)
     if (!outcome.ok) {
       setResult(null)
       setError(outcome.message)
       return outcome
     }
+    const result = applyDiceFloor(outcome.result, floor)
     setError(null)
-    setResult(outcome.result)
-    setExpression(outcome.result.expression)
-    applyParsed(outcome.result.expression)
-    return outcome
+    setResult(result)
+    setExpression(result.expression)
+    applyParsed(result.expression)
+    return { ok: true as const, result }
   }
 
-  function rollExpression() {
-    return rollInput(expression)
+  function reset(next = DEFAULT_DICE_EXPRESSION) {
+    const parsed = parseDiceExpression(next)
+    setResult(null)
+    setError(null)
+    setExpression(next)
+    if (!parsed.ok) return
+    setCustomSides(String(parsed.value.sides))
+    setCustomCount(String(parsed.value.count))
+    setCustomModifier(String(parsed.value.modifier))
+  }
+
+  function rollExpression(floor: DiceFloorSetting = DICE_FLOOR_OFF) {
+    return rollInput(expression, floor)
   }
 
   function rollFields() {
@@ -81,7 +112,7 @@ export function useDiceRoll(initialExpression = "1d20") {
       setError(composed.message)
       return composed
     }
-    return rollInput(composed.expression)
+    return rollInput(composed.expression, DICE_FLOOR_OFF)
   }
 
   return {
@@ -96,6 +127,7 @@ export function useDiceRoll(initialExpression = "1d20") {
     result,
     error,
     applyPreset,
+    reset,
     rollExpression,
     rollFields,
   }

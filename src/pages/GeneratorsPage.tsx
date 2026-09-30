@@ -6,6 +6,7 @@ import { GeneratorEditor } from "../features/generators/GeneratorEditor.tsx"
 import { generatorHistoryDraft } from "../features/history/historyDrafts.ts"
 import { useGenerators } from "../features/generators/useGenerators.ts"
 import { RecordTransferButtons } from "../features/storage/RecordTransferButtons.tsx"
+import { readGeneratorsTrace, writeGeneratorsTrace } from "../features/schemes/pageTraces.ts"
 import { useCatalog } from "../features/storage/useCatalog.ts"
 import type { GeneratorDraft } from "../services/storage/mutateUserData.ts"
 
@@ -18,7 +19,7 @@ export function GeneratorsPage() {
   const [editor, setEditor] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [note, setNote] = useState("")
+  const [note, setNote] = useState(() => readGeneratorsTrace().note)
   const selected = generators.selected
   const result = generators.result
 
@@ -27,6 +28,10 @@ export function GeneratorsPage() {
     const timer = window.setTimeout(() => setCopied(false), 2000)
     return () => window.clearTimeout(timer)
   }, [copied])
+
+  useEffect(() => {
+    writeGeneratorsTrace({ note })
+  }, [note])
 
   function openGenerator(id: string | undefined) {
     if (!id) return

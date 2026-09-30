@@ -8,7 +8,7 @@ export type DiceFormValues = {
   modifier: string
 }
 
-export function diceForm(expression = "1d20", name = ""): DiceFormValues {
+export function diceForm(expression = "1d100", name = ""): DiceFormValues {
   const parsed = parseDiceExpression(expression)
   if (!parsed.ok) return { name, expression, sides: "20", count: "1", modifier: "0" }
   return {

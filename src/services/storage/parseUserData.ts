@@ -86,7 +86,15 @@ function asDiceResult(input: Record<string, unknown>): HistoryRecord["diceResult
     return [{ sides: roll.sides, value: roll.value }]
   })
   if (rolls.length !== input.rolls.length) return undefined
-  return { expression: input.expression, rolls, subtotal: input.subtotal, modifier: input.modifier, total: input.total }
+  const uncorrectedTotal = typeof input.uncorrectedTotal === "number" ? input.uncorrectedTotal : undefined
+  return {
+    expression: input.expression,
+    rolls,
+    subtotal: input.subtotal,
+    modifier: input.modifier,
+    total: input.total,
+    ...(uncorrectedTotal === undefined ? {} : { uncorrectedTotal }),
+  }
 }
 
 export function parseSettingsList(

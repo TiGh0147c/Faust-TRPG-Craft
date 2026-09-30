@@ -6,7 +6,7 @@ import {
   exampleWeightTable,
 } from "../../types/examples.ts"
 import type { RandomTable } from "../../types/table.ts"
-import { rollTableExpression, TABLE_COVERAGE_ERROR } from "./assignedRanges.ts"
+import { defaultRangeExpression, formatAssignedSpan, rollTableExpression, TABLE_COVERAGE_ERROR } from "./assignedRanges.ts"
 import { drawCollectionTable, orderCollectionTable } from "./orderRows.ts"
 import { drawTable } from "./drawTable.ts"
 import { filterTables } from "./filterTables.ts"
@@ -107,6 +107,14 @@ describe("assigned ranges", () => {
       ok: false,
       message: "这张表不是按数值区间匹配的。",
     })
+    expect(defaultRangeExpression(exampleCityNightTable)).toBe("1d100")
+    expect(
+      defaultRangeExpression({
+        ...exampleCityNightTable,
+        entries: [{ id: "mid", text: "中段", min: 20, max: 30 }],
+      }),
+    ).toBe("1d11+19")
+    expect(formatAssignedSpan(61, 80)).toBe("61 - 80")
   })
 })
 
@@ -125,7 +133,10 @@ describe("drawTable", () => {
     if (!ordered.ok) return
     expect(ordered.result.rows.map((row) => row.text).sort()).toEqual(["结果 A", "结果 B"])
 
-    const weighted = orderCollectionTable(exampleWeightTable, sequence([0.99]))
+    const weighted = orderCollectionTable(exampleWeightTable, sequence([0.99]), undefined, undefined, {
+      enabled: true,
+      bias: "front",
+    })
     expect(weighted.ok).toBe(true)
     if (!weighted.ok) return
     expect(weighted.result.rows[0]?.text).toBe("少见")
@@ -144,7 +155,7 @@ describe("drawTable", () => {
     })
     expect(orderCollectionTable(exampleWeightTable, () => 0, [])).toMatchObject({
       ok: false,
-      message: "请至少选择一项。",
+      message: "请至少开启一项。",
     })
     const prefixed = orderCollectionTable(exampleUniformTable, sequence([0, 0]), undefined, 1)
     expect(prefixed.ok).toBe(true)
@@ -281,7 +292,7 @@ describe("formatTableResult", () => {
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) return
     expect(formatTableResult(outcome.result)).toBe(
-      ["城市夜间事件", "数值：73", "区间：61-80", "结果：遭遇突发事件"].join("\n"),
+      ["城市夜间事件", "数值：73", "区间：61 - 80", "结果：遭遇突发事件"].join("\n"),
     )
   })
 })

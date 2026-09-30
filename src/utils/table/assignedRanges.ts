@@ -1,6 +1,6 @@
 import type { DiceRollResult } from "../../types/dice.ts"
 import type { RandomTable, TableRollResult } from "../../types/table.ts"
-import { parseDiceExpression, rollDice } from "../dice/index.ts"
+import { formatDiceExpression, parseDiceExpression, rollDice } from "../dice/index.ts"
 import type { RandomSource } from "../random.ts"
 import { toTableRollResult, type TableRollOutcome } from "./result.ts"
 
@@ -13,7 +13,17 @@ export type AssignedRange = {
 }
 
 export function formatAssignedSpan(min: number, max: number): string {
-  return min === max ? String(min) : `${min}-${max}`
+  return min === max ? String(min) : `${min} - ${max}`
+}
+
+export function defaultRangeExpression(table: RandomTable): string {
+  const assigned = assignedRanges(table)
+  if (!assigned.ok || assigned.ranges.length === 0) return "1d100"
+  const min = Math.min(...assigned.ranges.map((range) => range.min))
+  const max = Math.max(...assigned.ranges.map((range) => range.max))
+  const length = max - min + 1
+  if (!Number.isSafeInteger(length) || length < 2) return "1d100"
+  return formatDiceExpression({ count: 1, sides: length, modifier: min - 1 })
 }
 
 export function assignedRanges(

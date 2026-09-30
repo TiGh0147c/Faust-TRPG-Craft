@@ -10,9 +10,24 @@ import { rollDice } from "../../utils/dice/rollDice.ts"
 import { matchTableByValue } from "../../utils/table/matchTable.ts"
 import { diceHistoryDraft, pipelineHistoryDraft, tableHistoryDraft } from "./historyDrafts.ts"
 import { filterHistory, formatHistoryTime, latestSameKindNote } from "./filterHistory.ts"
+import { splitHistoryOutput } from "./splitHistoryOutput.ts"
 
 beforeEach(() => {
   globalThis.indexedDB = new IDBFactory()
+})
+
+describe("history output preview", () => {
+  it("keeps lines through the final result and hides the rest", () => {
+    expect(splitHistoryOutput("1d6\n最终结果：4\n骰子：4")).toEqual({
+      preview: "1d6\n最终结果：4",
+      detail: "骰子：4",
+    })
+    expect(splitHistoryOutput("城市夜间事件\n结果：平静无事\n词条：异常踪迹\n正文")).toEqual({
+      preview: "城市夜间事件\n结果：平静无事",
+      detail: "词条：异常踪迹\n正文",
+    })
+    expect(splitHistoryOutput("只有一段说明")).toEqual({ preview: "只有一段说明", detail: "" })
+  })
 })
 
 describe("history drafts", () => {
