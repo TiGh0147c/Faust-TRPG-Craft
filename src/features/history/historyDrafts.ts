@@ -3,6 +3,7 @@ import type { DiceRollResult } from "../../types/dice.ts"
 import type { Entry } from "../../types/entry.ts"
 import type { TableRollResult, TableSequenceResult } from "../../types/table.ts"
 import { formatSequence } from "../../utils/collection/orderCollection.ts"
+import { formatComparisonInput, formatDiceComparison, type NamedDiceRoll } from "../../utils/dice/compareDice.ts"
 import { formatDiceResult } from "../../utils/dice/formatDiceResult.ts"
 import { formatEntry } from "../../utils/entry/formatEntry.ts"
 import { formatTableResult } from "../../utils/table/formatTableResult.ts"
@@ -14,6 +15,21 @@ export function attachNote(draft: HistoryDraft, note: string): HistoryDraft {
   const trimmed = note.trim()
   if (!trimmed) return draft
   return { ...draft, note: trimmed }
+}
+
+export function diceComparisonHistoryDraft(
+  ordered: readonly NamedDiceRoll[],
+  results: readonly NamedDiceRoll[],
+  note = "",
+): HistoryDraft {
+  return attachNote(
+    {
+      kind: "dice",
+      input: formatComparisonInput(ordered),
+      output: formatDiceComparison(results),
+    },
+    note,
+  )
 }
 
 export function diceHistoryDraft(result: DiceRollResult, note = ""): HistoryDraft {

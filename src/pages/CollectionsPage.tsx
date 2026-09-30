@@ -25,7 +25,7 @@ type CollectionSource = "range" | "custom"
 
 export function CollectionsPage() {
   const catalog = useCatalog()
-  const [source, setSource] = useState<CollectionSource | "">("")
+  const [source, setSource] = useState<CollectionSource>("range")
   const [start, setStart] = useState("1")
   const [end, setEnd] = useState("10")
   const [itemName, setItemName] = useState("")
@@ -57,16 +57,13 @@ export function CollectionsPage() {
       if (!range.ok) return range
       return { ok: true as const, names: range.values.map(String), weights: range.values.map(() => 1) }
     }
-    if (source === "custom") {
-      const named = readNamedItems(customItems)
-      if (!named.ok) return named
-      return {
-        ok: true as const,
-        names: named.items.map((item) => item.name),
-        weights: named.items.map((item) => item.weight),
-      }
+    const named = readNamedItems(customItems)
+    if (!named.ok) return named
+    return {
+      ok: true as const,
+      names: named.items.map((item) => item.name),
+      weights: named.items.map((item) => item.weight),
     }
-    return { ok: false as const, message: "先选择数值区间或自定义集合。" }
   }
 
   function addItem() {
@@ -194,11 +191,7 @@ export function CollectionsPage() {
         </button>
       </div>
 
-      {source === "" ? <p className="note">先选择数值区间或自定义集合。</p> : null}
-
-      {source !== "" ? (
-        <HistoryNoteField className="note-row" id="collection-note" kind="collection" value={note} onChange={setNote} />
-      ) : null}
+      <HistoryNoteField className="note-row" id="collection-note" kind="collection" value={note} onChange={setNote} />
 
       {source === "range" ? (
         <div className="inline-form">
@@ -274,9 +267,7 @@ export function CollectionsPage() {
         </div>
       ) : null}
 
-      {source !== "" ? (
-        <>
-          <div className="mode-choices" role="group" aria-label="排序方式">
+      <div className="mode-choices" role="group" aria-label="排序方式">
             <button
               className="button button-secondary"
               type="button"
@@ -350,9 +341,7 @@ export function CollectionsPage() {
             <button className="button button-secondary" type="submit">
               抽取
             </button>
-          </form>
-        </>
-      ) : null}
+      </form>
 
       {error ? (
         <p className="form-error" role="alert">
