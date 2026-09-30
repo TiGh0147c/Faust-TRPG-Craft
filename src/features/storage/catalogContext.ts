@@ -37,6 +37,8 @@ export type CatalogValue = {
   deleteHistory: (id: string) => Promise<UserDataMutation>
   deleteHistoryRecords: (ids: readonly string[]) => Promise<UserDataMutation>
   clearHistory: () => Promise<UserDataMutation>
+  showBuiltin: boolean
+  setShowBuiltin: (enabled: boolean) => Promise<UserDataMutation>
 }
 
 export const CatalogContext = createContext<CatalogValue | null>(null)

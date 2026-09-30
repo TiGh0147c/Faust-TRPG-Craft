@@ -106,27 +106,33 @@ export function StoragePage() {
           ) : null}
 
           <h2 className="section-label">内置数据</h2>
-          <p className="note">这些内容随网站发布，不能在这里修改，也不会写入备份。</p>
-          <ul className="record-list">
-            {catalog.builtin.tables.map((table) => (
-              <li key={table.id}>
-                <strong>{table.name}</strong>
-                <span>内置随机表</span>
-              </li>
-            ))}
-            {catalog.builtin.entries.map((entry) => (
-              <li key={entry.id}>
-                <strong>{entry.name}</strong>
-                <span>内置词条</span>
-              </li>
-            ))}
-            {catalog.builtin.generators.map((generator) => (
-              <li key={generator.id}>
-                <strong>{generator.name}</strong>
-                <span>内置生成器</span>
-              </li>
-            ))}
-          </ul>
+          {catalog.showBuiltin ? (
+            <>
+              <p className="note">这些内容随网站发布，不能在这里修改，也不会写入备份。</p>
+              <ul className="record-list">
+                {catalog.builtin.tables.map((table) => (
+                  <li key={table.id}>
+                    <strong>{table.name}</strong>
+                    <span>内置随机表</span>
+                  </li>
+                ))}
+                {catalog.builtin.entries.map((entry) => (
+                  <li key={entry.id}>
+                    <strong>{entry.name}</strong>
+                    <span>内置词条</span>
+                  </li>
+                ))}
+                {catalog.builtin.generators.map((generator) => (
+                  <li key={generator.id}>
+                    <strong>{generator.name}</strong>
+                    <span>内置生成器</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="note">内置数据当前已关闭。可以在设置里打开「显示内置数据」。</p>
+          )}
 
           <h2 className="section-label">用户数据整包</h2>
           <p className="note">一份文件包含用户随机表、词条、生成器和设置。导入后覆盖这些内容，历史保留。</p>

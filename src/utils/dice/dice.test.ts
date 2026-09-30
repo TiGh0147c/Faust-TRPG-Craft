@@ -4,6 +4,8 @@ import {
   MAX_DICE_COUNT,
   MAX_DIE_SIDES,
   MAX_MODIFIER,
+  expressionWithSides,
+  formatDiceExpression,
   parseDiceExpression,
 } from "./parseDiceExpression.ts"
 import { rollDice, type RandomSource } from "./rollDice.ts"
@@ -42,6 +44,15 @@ describe("parseDiceExpression", () => {
       ok: true,
       value: { count: 2, sides: 6, modifier: 3 },
     })
+  })
+
+  it("replaces only the die sides, and resets an empty or invalid expression", () => {
+    expect(expressionWithSides("3d20+5", 100)).toBe("3d100+5")
+    expect(expressionWithSides("3d20+5", 50)).toBe("3d50+5")
+    expect(expressionWithSides("d20-2", 12)).toBe("1d12-2")
+    expect(expressionWithSides("", 6)).toBe("1d6")
+    expect(expressionWithSides("不是骰子", 8)).toBe("1d8")
+    expect(formatDiceExpression({ count: 3, sides: 50, modifier: 5 })).toBe("3d50+5")
   })
 
   it("rejects expressions outside the supported form", () => {

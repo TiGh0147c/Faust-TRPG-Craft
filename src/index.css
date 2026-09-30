@@ -296,7 +296,21 @@ main {
 .source-column {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.menu-pane {
+  display: flex;
+  flex-direction: column;
   gap: 0.45rem;
+  min-width: 0;
+}
+
+.menu-scroll {
+  max-height: min(22rem, 46vh);
+  overflow: auto;
+  padding-right: 0.2rem;
 }
 
 .source-create {
@@ -444,8 +458,10 @@ main {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  max-height: min(18rem, 42vh);
   margin: 0 0 1.25rem;
   padding: 0;
+  overflow: auto;
   list-style: none;
 }
 
@@ -528,6 +544,19 @@ main {
   margin: 0;
 }
 
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+  font-weight: 650;
+}
+
+.check-row input {
+  width: 1rem;
+  height: 1rem;
+}
+
 .pipeline-table {
   margin-bottom: 1rem;
 }
@@ -589,5 +618,12 @@ main {
   .table-workspace {
     grid-template-columns: 16rem minmax(0, 1fr);
     align-items: start;
+  }
+
+  .table-workspace > :last-child {
+    position: sticky;
+    top: 5.5rem;
+    max-height: calc(100vh - 7rem);
+    overflow: auto;
   }
 }

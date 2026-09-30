@@ -65,6 +65,12 @@ export function parseDiceExpression(input: string): DiceParseOutcome {
   return { ok: true, value: { count, sides, modifier } }
 }
 
+export function expressionWithSides(input: string, sides: number): string {
+  const parsed = parseDiceExpression(input)
+  if (!parsed.ok) return `1d${sides}`
+  return formatDiceExpression({ ...parsed.value, sides })
+}
+
 export function formatDiceExpression(parsed: ParsedDiceExpression): string {
   const base = `${parsed.count}d${parsed.sides}`
   if (parsed.modifier > 0) return `${base}+${parsed.modifier}`

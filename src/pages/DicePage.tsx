@@ -44,7 +44,7 @@ export function DicePage() {
   return (
     <section className="page">
       <h1>骰子</h1>
-      <p className="lead">支持常用骰子、自定义面数，以及 1d20、2d6+3、4d6-1 这类表达式。成功的投掷会写入历史。</p>
+      <p className="lead">可以输入表达式，也可以填写面数、颗数和数值补正。常用骰子只替换表达式里的面数。成功的投掷会写入历史。</p>
 
       <form
         className="inline-form"
@@ -68,27 +68,11 @@ export function DicePage() {
         </button>
       </form>
 
-      <h2 className="section-label" id="preset-label">
-        常用骰子
-      </h2>
-      <div className="dice-presets" role="group" aria-labelledby="preset-label">
-        {PRESET_SIDES.map((sides) => (
-          <button
-            key={sides}
-            className="button button-secondary"
-            type="button"
-            onClick={() => void roll(() => dice.rollPreset(sides))}
-          >
-            d{sides}
-          </button>
-        ))}
-      </div>
-
       <form
         className="inline-form"
         onSubmit={(event) => {
           event.preventDefault()
-          void roll(() => dice.rollCustom())
+          void roll(() => dice.rollFields())
         }}
       >
         <label className="field" htmlFor="custom-sides">
@@ -103,10 +87,48 @@ export function DicePage() {
             onChange={(event) => dice.setCustomSides(event.target.value)}
           />
         </label>
+        <label className="field" htmlFor="custom-count">
+          投掷颗数
+          <input
+            id="custom-count"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={dice.customCount}
+            onChange={(event) => dice.setCustomCount(event.target.value)}
+          />
+        </label>
+        <label className="field" htmlFor="custom-modifier">
+          数值补正
+          <input
+            id="custom-modifier"
+            type="number"
+            inputMode="numeric"
+            value={dice.customModifier}
+            onChange={(event) => dice.setCustomModifier(event.target.value)}
+          />
+        </label>
         <button className="button button-secondary" type="submit">
-          投掷一颗
+          投掷
         </button>
       </form>
+
+      <h2 className="section-label" id="preset-label">
+        常用骰子
+      </h2>
+      <div className="dice-presets" role="group" aria-labelledby="preset-label">
+        {PRESET_SIDES.map((sides) => (
+          <button
+            key={sides}
+            className="button button-secondary"
+            type="button"
+            aria-pressed={dice.customSides === String(sides)}
+            onClick={() => dice.applyPreset(sides)}
+          >
+            d{sides}
+          </button>
+        ))}
+      </div>
 
       {dice.error ? (
         <p className="form-error" role="alert">
@@ -147,7 +169,7 @@ export function DicePage() {
           </dl>
         </section>
       ) : dice.error ? null : (
-        <p className="note">输入表达式，或直接选择一颗常用骰子。</p>
+        <p className="note">输入表达式，或填写面数、颗数和数值补正。</p>
       )}
       {historyError ? (
         <p className="form-error" role="alert">

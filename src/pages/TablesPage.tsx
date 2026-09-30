@@ -65,7 +65,7 @@ export function TablesPage() {
       return
     }
     setEditor(null)
-    const fallback = catalog.builtin.tables[0]?.id
+    const fallback = result.data.tables[0]?.id ?? (catalog.showBuiltin ? catalog.builtin.tables[0]?.id : undefined)
     if (fallback) tables.select(fallback)
   }
 
@@ -154,6 +154,7 @@ export function TablesPage() {
         <div className="table-workspace">
           <SourceColumn
             items={tables.filtered}
+            showBuiltin={catalog.showBuiltin}
             userNote={
               catalog.tables.some((table) => table.origin === "user") &&
               !tables.filtered.some((table) => table.origin === "user")

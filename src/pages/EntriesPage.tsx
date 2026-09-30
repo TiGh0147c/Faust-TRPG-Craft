@@ -62,7 +62,7 @@ export function EntriesPage() {
       return
     }
     setEditor(null)
-    const fallback = catalog.builtin.entries[0]?.id
+    const fallback = result.data.entries[0]?.id ?? (catalog.showBuiltin ? catalog.builtin.entries[0]?.id : undefined)
     if (fallback) entries.select(fallback)
   }
 
@@ -139,6 +139,7 @@ export function EntriesPage() {
         <div className="table-workspace">
           <SourceColumn
             items={entries.filtered}
+            showBuiltin={catalog.showBuiltin}
             userNote={userListNote(catalog.entries, entries.filtered, "还没有用户词条。", "没有符合条件的用户词条。")}
             createLabel="新建词条"
             onCreate={() => {

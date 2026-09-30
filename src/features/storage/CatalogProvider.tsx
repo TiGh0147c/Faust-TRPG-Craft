@@ -19,6 +19,7 @@ import {
   updateTable,
 } from "../../services/storage/mutateUserData.ts"
 import type { EntryDraft, GeneratorDraft, TableDraft } from "../../services/storage/mutateUserData.ts"
+import { showBuiltinEnabled, writeShowBuiltin } from "../../services/storage/appSettings.ts"
 import { applyTransfer, builtinIdsFrom } from "../../services/storage/transfer.ts"
 import { createEmptyUserData, type BuiltinData, type UserData } from "../../types/data.ts"
 import type { TransferEnvelope } from "../../types/transfer.ts"
@@ -77,6 +78,13 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const available = useMemo(() => mergeCatalog(builtin, user), [builtin, user])
+  const showBuiltin = showBuiltinEnabled(user.settings)
+  const tables = useMemo(() => visibleRecords(available.tables, showBuiltin), [available.tables, showBuiltin])
+  const entries = useMemo(() => visibleRecords(available.entries, showBuiltin), [available.entries, showBuiltin])
+  const generators = useMemo(
+    () => visibleRecords(available.generators, showBuiltin),
+    [available.generators, showBuiltin],
+  )
 
   function enqueue(mutate: (current: UserData) => UserDataMutation): Promise<UserDataMutation> {
     const task = queueRef.current.then(async () => {
@@ -178,15 +186,19 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     return enqueue((current) => clearHistory(current))
   }
 
+  function saveShowBuiltin(enabled: boolean): Promise<UserDataMutation> {
+    return enqueue((current) => writeShowBuiltin(current, enabled))
+  }
+
   const value: CatalogValue = {
     status,
     loadError,
     storageError,
     builtin,
     user,
-    tables: available.tables,
-    entries: available.entries,
-    generators: available.generators,
+    tables,
+    entries,
+    generators,
     createEntry,
     updateEntry: saveEntry,
     deleteEntry: removeEntry,
@@ -205,9 +217,15 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     deleteHistory: removeHistory,
     deleteHistoryRecords: removeHistoryRecords,
     clearHistory: removeAllHistory,
+    showBuiltin,
+    setShowBuiltin: saveShowBuiltin,
   }
 
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>
+}
+
+function visibleRecords<T extends { origin: "builtin" | "user" }>(records: readonly T[], showBuiltin: boolean): T[] {
+  return showBuiltin ? [...records] : records.filter((record) => record.origin === "user")
 }
 
 function entryIds(builtin: BuiltinData): Set<string> {

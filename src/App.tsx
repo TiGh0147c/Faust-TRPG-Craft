@@ -7,6 +7,7 @@ import { GeneratorsPage } from "./pages/GeneratorsPage.tsx"
 import { HistoryPage } from "./pages/HistoryPage.tsx"
 import { HomePage } from "./pages/HomePage.tsx"
 import { PipelinePage } from "./pages/PipelinePage.tsx"
+import { SettingsPage } from "./pages/SettingsPage.tsx"
 import { StoragePage } from "./pages/StoragePage.tsx"
 import { TablesPage } from "./pages/TablesPage.tsx"
 
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="generators" element={<GeneratorsPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="storage" element={<StoragePage />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Routes>
       </CatalogProvider>

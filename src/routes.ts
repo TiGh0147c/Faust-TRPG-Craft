@@ -47,4 +47,9 @@ export const appRoutes: AppRoute[] = [
     label: "数据管理",
     description: "导入、导出和清理保存在这台浏览器里的用户内容与历史。",
   },
+  {
+    path: "/settings",
+    label: "设置",
+    description: "控制是否显示和选用内置数据。",
+  },
 ]

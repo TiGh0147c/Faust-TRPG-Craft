@@ -63,7 +63,7 @@ export function GeneratorsPage() {
       return
     }
     setEditor(null)
-    const fallback = catalog.builtin.generators[0]?.id
+    const fallback = result.data.generators[0]?.id ?? (catalog.showBuiltin ? catalog.builtin.generators[0]?.id : undefined)
     if (fallback) generators.select(fallback)
   }
 
@@ -146,6 +146,7 @@ export function GeneratorsPage() {
         <div className="table-workspace">
           <SourceColumn
             items={generators.filtered}
+            showBuiltin={catalog.showBuiltin}
             userNote={
               catalog.generators.some((generator) => generator.origin === "user") &&
               !generators.filtered.some((generator) => generator.origin === "user")

@@ -65,6 +65,7 @@ export function PipelinePage() {
                 pipeline.selectTable(event.target.value)
               }}
             >
+              {pipeline.tables.length === 0 ? <option value="">没有可选的随机表</option> : null}
               {pipeline.tables.map((table) => (
                 <option key={table.id} value={table.id}>
                   {table.name}（{table.origin === "builtin" ? "内置" : "用户"}）
@@ -72,6 +73,9 @@ export function PipelinePage() {
               ))}
             </select>
           </label>
+          {pipeline.tables.length === 0 ? (
+            <p className="note">没有可选的随机表。可以新建用户随机表，或在设置里打开「显示内置数据」。</p>
+          ) : null}
 
           <form
             className="inline-form"

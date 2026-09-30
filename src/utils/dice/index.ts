@@ -3,6 +3,7 @@ export {
   MAX_DICE_COUNT,
   MAX_DIE_SIDES,
   MAX_MODIFIER,
+  expressionWithSides,
   formatDiceExpression,
   parseDiceExpression,
 } from "./parseDiceExpression.ts"
