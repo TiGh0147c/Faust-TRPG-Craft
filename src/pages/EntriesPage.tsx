@@ -132,11 +132,11 @@ export function EntriesPage() {
             ))}
           </select>
         </label>
-        <HistoryNoteField id="entry-note" value={note} onChange={setNote} />
-        <button className="button" type="button" onClick={() => void drawAndRecord()}>
-          随机抽取
-        </button>
       </div>
+      <HistoryNoteField className="note-row" id="entry-note" value={note} onChange={setNote} />
+      <button className="button" type="button" onClick={() => void drawAndRecord()}>
+        随机抽取
+      </button>
       {historyError ? (
         <p className="form-error" role="alert">
           没有写入历史。{historyError}

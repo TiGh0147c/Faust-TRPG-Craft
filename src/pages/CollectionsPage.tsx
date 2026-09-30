@@ -36,6 +36,7 @@ export function CollectionsPage() {
   const [orderMode, setOrderMode] = useState<OrderMode>("all")
   const [orderCount, setOrderCount] = useState("1")
   const [note, setNote] = useState("")
+  const [resultNote, setResultNote] = useState("")
   const [values, setValues] = useState<(string | number)[] | null>(null)
   const [summary, setSummary] = useState("")
   const [action, setAction] = useState<"order" | "draw" | null>(null)
@@ -102,10 +103,12 @@ export function CollectionsPage() {
     setHistoryError(null)
     setCopied(false)
     setCopyError(null)
+    const shown = note.trim()
     setAction(kind)
     setSummary(input)
     setValues(next)
-    const saved = await catalog.recordHistory(collectionHistoryDraft(input, next, note))
+    setResultNote(shown)
+    const saved = await catalog.recordHistory(collectionHistoryDraft(input, next, shown))
     if (!saved.ok) setHistoryError(saved.message)
   }
 
@@ -155,7 +158,8 @@ export function CollectionsPage() {
   async function copyResult() {
     if (!values) return
     try {
-      await navigator.clipboard.writeText(formatSequence(summary, values))
+      const body = formatSequence(summary, values)
+      await navigator.clipboard.writeText(resultNote ? `${resultNote}\n${body}` : body)
       setCopyError(null)
       setCopied(true)
     } catch {
@@ -192,7 +196,9 @@ export function CollectionsPage() {
 
       {source === "" ? <p className="note">先选择数值区间或自定义集合。</p> : null}
 
-      {source !== "" ? <HistoryNoteField className="note-row" id="collection-note" value={note} onChange={setNote} /> : null}
+      {source !== "" ? (
+        <HistoryNoteField className="note-row" id="collection-note" kind="collection" value={note} onChange={setNote} />
+      ) : null}
 
       {source === "range" ? (
         <div className="inline-form">
@@ -356,6 +362,7 @@ export function CollectionsPage() {
 
       {values ? (
         <section className="panel" aria-live="polite">
+          {resultNote ? <p className="result-note">{resultNote}</p> : null}
           <div className="panel-header">
             <p className="dice-total-label">{action === "order" ? "随机排序" : "抽取结果"}</p>
             <button className="button button-secondary" type="button" onClick={() => void copyResult()}>

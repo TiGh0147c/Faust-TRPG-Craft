@@ -22,6 +22,15 @@ export function filterHistory(
   })
 }
 
+export function latestSameKindNote(
+  records: readonly HistoryRecord[],
+  kind: HistoryKind,
+  matches: (record: HistoryRecord) => boolean = () => true,
+): string {
+  const latest = records.find((record) => record.kind === kind && matches(record))
+  return latest?.note ?? ""
+}
+
 export function formatHistoryTime(createdAt: string): string {
   const date = new Date(createdAt)
   if (Number.isNaN(date.getTime())) return createdAt

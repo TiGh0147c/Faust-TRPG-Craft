@@ -232,6 +232,7 @@ export function GeneratorsPage() {
                   </li>
                 ))}
               </ul>
+              <HistoryNoteField className="note-row" id="generator-note" value={note} onChange={setNote} />
               <form
                 className="inline-form"
                 onSubmit={(event) => {
@@ -239,7 +240,6 @@ export function GeneratorsPage() {
                   void generate()
                 }}
               >
-                <HistoryNoteField id="generator-note" value={note} onChange={setNote} />
                 <button className="button generator-run" type="submit">
                   生成
                 </button>

@@ -9,7 +9,7 @@ import { readUserData, writeUserData } from "../../services/storage/userDataStor
 import { rollDice } from "../../utils/dice/rollDice.ts"
 import { matchTableByValue } from "../../utils/table/matchTable.ts"
 import { diceHistoryDraft, pipelineHistoryDraft, tableHistoryDraft } from "./historyDrafts.ts"
-import { filterHistory, formatHistoryTime } from "./filterHistory.ts"
+import { filterHistory, formatHistoryTime, latestSameKindNote } from "./filterHistory.ts"
 
 beforeEach(() => {
   globalThis.indexedDB = new IDBFactory()
@@ -79,6 +79,8 @@ describe("history mutations", () => {
     expect(blank.ok).toBe(true)
     if (!blank.ok) return
     expect(blank.data.history[0]?.note).toBeUndefined()
+    expect(latestSameKindNote(noted.data.history, "dice")).toBe("夜间检定")
+    expect(latestSameKindNote(blank.data.history, "dice")).toBe("")
     expect(filterHistory(noted.data.history, { keyword: "夜间", kind: "", favoritesOnly: false })).toHaveLength(1)
   })
 

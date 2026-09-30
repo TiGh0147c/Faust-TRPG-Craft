@@ -15,6 +15,7 @@ import { formatSequence, readOrderCount } from "../utils/collection/orderCollect
 import { MAX_DIE_SIDES, formatDiceResult } from "../utils/dice/index.ts"
 import { assignedRanges, formatAssignedSpan, formatTableResult } from "../utils/table/index.ts"
 import type { DiceRollResult } from "../types/dice.ts"
+import type { HistoryRecord } from "../types/history.ts"
 import type { TableSequenceResult } from "../types/table.ts"
 
 type TableDrawMode = "match" | "random" | "expression"
@@ -23,6 +24,20 @@ const MODE_LABEL = {
   range: "数值区间",
   collection: "集合",
 } as const
+
+function isTableSequenceRecord(record: HistoryRecord): boolean {
+  return record.input.includes("随机排序") || record.input.includes("每项最多")
+}
+
+function isRandomDrawRecord(record: HistoryRecord): boolean {
+  return record.input === "随机抽取" || record.input.startsWith("随机抽取 ")
+}
+
+function tableNoteMatches(mode: TableDrawMode): (record: HistoryRecord) => boolean {
+  if (mode === "expression") return (record) => record.diceResult !== undefined
+  if (mode === "random") return (record) => isRandomDrawRecord(record)
+  return (record) => record.diceResult === undefined && !isTableSequenceRecord(record) && !isRandomDrawRecord(record)
+}
 
 export function TablesPage() {
   const tables = useRandomTables()
@@ -35,6 +50,7 @@ export function TablesPage() {
   const [copyError, setCopyError] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [note, setNote] = useState("")
+  const [resultNote, setResultNote] = useState("")
   const [editor, setEditor] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -86,7 +102,9 @@ export function TablesPage() {
     if (!outcome || !outcome.ok) return
     const linkedNow = resolveLinkedEntry(outcome.result.entryId, catalog.status === "ready" ? catalog.entries : null)
     const entry = linkedNow.status === "found" ? linkedNow.entry : undefined
-    const saved = await catalog.recordHistory(tableHistoryDraft(outcome.result, entry, source, "", note))
+    const shown = note.trim()
+    setResultNote(shown)
+    const saved = await catalog.recordHistory(tableHistoryDraft(outcome.result, entry, source, "", shown))
     if (!saved.ok) setHistoryError(saved.message)
   }
 
@@ -98,8 +116,10 @@ export function TablesPage() {
     if (!outcome || !outcome.ok) return
     const linkedNow = resolveLinkedEntry(outcome.result.entryId, catalog.status === "ready" ? catalog.entries : null)
     const entry = linkedNow.status === "found" ? linkedNow.entry : undefined
+    const shown = note.trim()
+    setResultNote(shown)
     const saved = await catalog.recordHistory(
-      tableHistoryDraft(outcome.result, entry, "expression", outcome.dice.expression, note, outcome.dice),
+      tableHistoryDraft(outcome.result, entry, "expression", outcome.dice.expression, shown, outcome.dice),
     )
     if (!saved.ok) setHistoryError(saved.message)
   }
@@ -116,7 +136,9 @@ export function TablesPage() {
     setHistoryError(null)
     const outcome = action === "order" ? tables.orderSelected(ids, prefix) : tables.drawRowsSelected(count, limit, ids)
     if (!outcome || !outcome.ok) return
-    const saved = await catalog.recordHistory(tableSequenceHistoryDraft(outcome.result, note))
+    const shown = note.trim()
+    setResultNote(shown)
+    const saved = await catalog.recordHistory(tableSequenceHistoryDraft(outcome.result, shown))
     if (!saved.ok) setHistoryError(saved.message)
   }
 
@@ -132,11 +154,15 @@ export function TablesPage() {
     if (!sequence && !rolled) return
     try {
       const text = sequence
-        ? formatSequence(sequenceSummary(sequence), sequence.rows.map((row) => row.text))
+        ? withNote(formatSequence(sequenceSummary(sequence), sequence.rows.map((row) => row.text)), resultNote, "first")
         : rolled
-          ? tables.expressionDice
-            ? `${formatTableResult(rolled, linked.status === "found" ? linked.entry : undefined)}\n${formatDiceResult(tables.expressionDice)}`
-            : formatTableResult(rolled, linked.status === "found" ? linked.entry : undefined)
+          ? withNote(
+              tables.expressionDice
+                ? `${formatTableResult(rolled, linked.status === "found" ? linked.entry : undefined)}\n${formatDiceResult(tables.expressionDice)}`
+                : formatTableResult(rolled, linked.status === "found" ? linked.entry : undefined),
+              resultNote,
+              "after-result",
+            )
           : ""
       await navigator.clipboard.writeText(text)
       setCopyError(null)
@@ -288,6 +314,7 @@ export function TablesPage() {
               linked={linked}
               entryLoadError={catalog.status === "error" ? catalog.loadError : null}
               historyError={historyError}
+              resultNote={resultNote}
               formError={formError}
             />
           ) : null}
@@ -324,6 +351,7 @@ type TableDetailProps = {
   linked: LinkedEntry
   entryLoadError: string | null
   historyError: string | null
+  resultNote: string
 }
 
 function TableDetail({
@@ -353,6 +381,7 @@ function TableDetail({
   linked,
   entryLoadError,
   historyError,
+  resultNote,
 }: TableDetailProps) {
   const dice = useDiceRoll()
   const [mode, setMode] = useState<TableDrawMode | "">("")
@@ -402,7 +431,14 @@ function TableDetail({
 
       {table.mode === "collection" ? (
         <>
-          <HistoryNoteField className="note-row" id="table-note" value={note} onChange={onNote} />
+          <HistoryNoteField
+            className="note-row"
+            id="table-note"
+            kind="table"
+            matches={isTableSequenceRecord}
+            value={note}
+            onChange={onNote}
+          />
           <div className="choice-cards" role="group" aria-label="参与排序和抽取的项目">
             {table.entries.map((entry) => (
               <label key={entry.id} className={included.includes(entry.id) ? "choice-card is-selected" : "choice-card"}>
@@ -533,7 +569,16 @@ function TableDetail({
         </button>
       </div>
 
-      {mode === "" ? <p className="note">先选择数值匹配、随机抽取或表达式。</p> : null}
+      {mode === "" ? <p className="note">先选择数值匹配、随机抽取或表达式。</p> : (
+        <HistoryNoteField
+          className="note-row"
+          id="table-note"
+          kind="table"
+          matches={tableNoteMatches(mode)}
+          value={note}
+          onChange={onNote}
+        />
+      )}
 
       {mode === "match" ? (
         <form
@@ -552,7 +597,6 @@ function TableDetail({
               onChange={(event) => onRangeInput(event.target.value)}
             />
           </label>
-          <HistoryNoteField id="table-note" value={note} onChange={onNote} />
           <button className="button" type="submit">
             匹配
           </button>
@@ -567,7 +611,6 @@ function TableDetail({
             onDraw()
           }}
         >
-          <HistoryNoteField id="table-note" value={note} onChange={onNote} />
           <button className="button" type="submit">
             抽取
           </button>
@@ -575,9 +618,7 @@ function TableDetail({
       ) : null}
 
       {mode === "expression" ? (
-        <>
-          <HistoryNoteField id="table-note" value={note} onChange={onNote} />
-          <form
+        <form
             className="stacked-form"
             onSubmit={(event) => {
               event.preventDefault()
@@ -633,7 +674,6 @@ function TableDetail({
               抽取
             </button>
           </form>
-        </>
       ) : null}
       </>
       )}
@@ -649,6 +689,7 @@ function TableDetail({
             <div>
               <p className="dice-total-label">结果</p>
               <p className="table-result-text">{resultText}</p>
+              {resultNote ? <p className="result-note">{resultNote}</p> : null}
             </div>
             <button className="button button-secondary" type="button" onClick={onCopy}>
               {copied ? "已复制" : "复制"}
@@ -698,6 +739,7 @@ function TableDetail({
 
       {sequence ? (
         <section className="panel" aria-live="polite">
+          {resultNote ? <p className="result-note">{resultNote}</p> : null}
           <div className="panel-header">
             <p className="dice-total-label">{sequence.action === "order" ? "随机排序" : "抽取结果"}</p>
             <button className="button button-secondary" type="button" onClick={onCopy}>
@@ -728,6 +770,15 @@ function TableTransfer({ tableId }: { tableId: string }) {
   const table = catalog.user.tables.find((item) => item.id === tableId)
   if (!table) return null
   return <RecordTransferButtons scope="tables" record={table} />
+}
+
+function withNote(text: string, note: string, placement: "first" | "after-result"): string {
+  if (!note) return text
+  if (placement === "first") return `${note}\n${text}`
+  const lines = text.split("\n")
+  const index = lines.findIndex((line) => line.startsWith("结果："))
+  lines.splice(index >= 0 ? index + 1 : lines.length, 0, note)
+  return lines.join("\n")
 }
 
 function rowLabel(entry: RandomTable["entries"][number], weightTotal: number): string {

@@ -15,6 +15,7 @@ export function DicePage() {
   const [copyError, setCopyError] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [note, setNote] = useState("")
+  const [resultNote, setResultNote] = useState("")
 
   async function roll(action: () => ReturnType<typeof dice.rollExpression>) {
     setCopied(false)
@@ -22,7 +23,9 @@ export function DicePage() {
     setHistoryError(null)
     const outcome = action()
     if (!outcome.ok) return
-    const saved = await catalog.recordHistory(diceHistoryDraft(outcome.result, note))
+    const shown = note.trim()
+    setResultNote(shown)
+    const saved = await catalog.recordHistory(diceHistoryDraft(outcome.result, shown))
     if (!saved.ok) setHistoryError(saved.message)
   }
 
@@ -35,7 +38,12 @@ export function DicePage() {
   async function copyResult() {
     if (!dice.result) return
     try {
-      await navigator.clipboard.writeText(formatDiceResult(dice.result))
+      const lines = formatDiceResult(dice.result).split("\n")
+      if (resultNote) {
+        const totalLine = lines.findIndex((line) => line.startsWith("最终结果："))
+        lines.splice(totalLine >= 0 ? totalLine + 1 : lines.length, 0, resultNote)
+      }
+      await navigator.clipboard.writeText(lines.join("\n"))
       setCopyError(null)
       setCopied(true)
     } catch {
@@ -49,7 +57,7 @@ export function DicePage() {
       <h1>骰子</h1>
       <p className="lead">可以输入表达式，也可以填写面数、颗数和数值补正。常用骰子只替换表达式里的面数。备注可选，留空则不会出现在历史里。成功的投掷会写入历史。</p>
 
-      <HistoryNoteField className="note-row" id="dice-note" value={note} onChange={setNote} />
+      <HistoryNoteField className="note-row" id="dice-note" kind="dice" value={note} onChange={setNote} />
 
       <form
         className="stacked-form"
@@ -137,6 +145,7 @@ export function DicePage() {
             <div>
               <p className="dice-total-label">最终结果</p>
               <p className="dice-total">{dice.result.total}</p>
+              {resultNote ? <p className="result-note">{resultNote}</p> : null}
             </div>
             <button className="button button-secondary" type="button" onClick={() => void copyResult()}>
               {copied ? "已复制" : "复制"}
