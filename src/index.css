@@ -43,10 +43,19 @@ a {
 }
 
 .brand {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
   margin-bottom: 0.35rem;
   font-weight: 650;
   text-decoration: none;
+}
+
+.brand-mark {
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
+  flex: none;
 }
 
 .brand small {

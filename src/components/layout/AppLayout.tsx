@@ -9,8 +9,11 @@ export function AppLayout() {
       <header className="app-header">
         <div className="app-header-inner">
           <NavLink to="/" className="brand" end>
-            Faust TRPG Craft
-            <small>轻量跑团工具</small>
+            <img className="brand-mark" src={`${import.meta.env.BASE_URL}faust.png`} alt="" />
+            <span>
+              Faust TRPG Craft
+              <small>轻量跑团工具</small>
+            </span>
           </NavLink>
           <nav className="nav" aria-label="主导航">
             {appRoutes.map((route) => (
