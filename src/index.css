@@ -456,6 +456,56 @@ main {
   font-size: 0.92rem;
 }
 
+.collection-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+}
+
+.collection-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.collection-editor-head,
+.collection-editor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem 4.75rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.collection-editor-head {
+  font-size: 0.92rem;
+}
+
+.collection-editor input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.collection-editor input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.collection-editor .button {
+  width: 100%;
+  padding-right: 0.4rem;
+  padding-left: 0.4rem;
+}
+
 .table-entry-list {
   margin: 0 0 1rem;
   padding: 0;

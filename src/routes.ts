@@ -20,7 +20,7 @@ export const appRoutes: AppRoute[] = [
   {
     path: "/collections",
     label: "集合",
-    description: "打乱数值区间或自定义集合，并按次数上限抽取。",
+    description: "打乱数值区间，或按权重维护自定义集合后再排序和抽取。",
   },
   {
     path: "/entries",

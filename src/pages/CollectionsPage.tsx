@@ -3,13 +3,21 @@ import { HistoryNoteField } from "../components/HistoryNoteField.tsx"
 import { collectionHistoryDraft } from "../features/history/historyDrafts.ts"
 import { useCatalog } from "../features/storage/useCatalog.ts"
 import {
-  collectionFromCustom,
   collectionFromRange,
+  MAX_COLLECTION_SIZE,
   drawLimited,
+  drawWeightedLimited,
   formatSequence,
+  readNamedItems,
   readOrderCount,
-  shuffleValues,
+  shuffleByWeight,
 } from "../utils/collection/orderCollection.ts"
+
+type CustomItem = {
+  id: string
+  name: string
+  weight: string
+}
 
 type OrderMode = "all" | "prefix"
 
@@ -20,13 +28,15 @@ export function CollectionsPage() {
   const [source, setSource] = useState<CollectionSource | "">("")
   const [start, setStart] = useState("1")
   const [end, setEnd] = useState("10")
-  const [custom, setCustom] = useState("")
+  const [itemName, setItemName] = useState("")
+  const [itemWeight, setItemWeight] = useState("1")
+  const [customItems, setCustomItems] = useState<CustomItem[]>([])
   const [count, setCount] = useState("1")
   const [limit, setLimit] = useState("1")
   const [orderMode, setOrderMode] = useState<OrderMode>("all")
   const [orderCount, setOrderCount] = useState("1")
   const [note, setNote] = useState("")
-  const [values, setValues] = useState<number[] | null>(null)
+  const [values, setValues] = useState<(string | number)[] | null>(null)
   const [summary, setSummary] = useState("")
   const [action, setAction] = useState<"order" | "draw" | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -40,13 +50,54 @@ export function CollectionsPage() {
     return () => window.clearTimeout(timer)
   }, [copied])
 
-  function currentValues() {
-    if (source === "range") return collectionFromRange(start, end)
-    if (source === "custom") return collectionFromCustom(custom)
+  function currentCollection() {
+    if (source === "range") {
+      const range = collectionFromRange(start, end)
+      if (!range.ok) return range
+      return { ok: true as const, names: range.values.map(String), weights: range.values.map(() => 1) }
+    }
+    if (source === "custom") {
+      const named = readNamedItems(customItems)
+      if (!named.ok) return named
+      return {
+        ok: true as const,
+        names: named.items.map((item) => item.name),
+        weights: named.items.map((item) => item.weight),
+      }
+    }
     return { ok: false as const, message: "先选择数值区间或自定义集合。" }
   }
 
-  async function finish(kind: "order" | "draw", input: string, next: number[]) {
+  function addItem() {
+    const name = itemName.trim()
+    if (name === "") {
+      setError("请输入元素名。")
+      return
+    }
+    const parsed = readNamedItems([{ name, weight: itemWeight }])
+    if (!parsed.ok) {
+      setError(parsed.message)
+      return
+    }
+    if (customItems.length + 1 > MAX_COLLECTION_SIZE) {
+      setError("元素太多，无法生成。")
+      return
+    }
+    setCustomItems((current) => [...current, { id: crypto.randomUUID(), name, weight: itemWeight.trim() }])
+    setItemName("")
+    setItemWeight("1")
+    setError(null)
+  }
+
+  function updateCustomItem(id: string, patch: Partial<Pick<CustomItem, "name" | "weight">>) {
+    setCustomItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)))
+  }
+
+  function removeCustomItem(id: string) {
+    setCustomItems((current) => current.filter((item) => item.id !== id))
+  }
+
+  async function finish(kind: "order" | "draw", input: string, next: (string | number)[]) {
     setError(null)
     setHistoryError(null)
     setCopied(false)
@@ -59,13 +110,13 @@ export function CollectionsPage() {
   }
 
   async function shuffle() {
-    const elements = currentValues()
+    const elements = currentCollection()
     if (!elements.ok) {
       setValues(null)
       setError(elements.message)
       return
     }
-    const ordered = shuffleValues(elements.values)
+    const ordered = shuffleByWeight(elements.names, elements.weights)
     const base = source === "range" ? `${start.trim()}-${end.trim()}` : "自定义集合"
     if (orderMode === "all") {
       await finish("order", `${base} 随机排序`, ordered)
@@ -81,13 +132,14 @@ export function CollectionsPage() {
   }
 
   async function draw() {
-    const elements = currentValues()
+    const elements = currentCollection()
     if (!elements.ok) {
       setValues(null)
       setError(elements.message)
       return
     }
-    const drawn = drawLimited(elements.values, count, limit)
+    const drawn =
+      source === "range" ? drawLimited(elements.names.map(Number), count, limit) : drawWeightedLimited(elements.names, elements.weights, count, limit)
     if (!drawn.ok) {
       setValues(null)
       setError(drawn.message)
@@ -116,7 +168,7 @@ export function CollectionsPage() {
     <section className="page">
       <h1>集合</h1>
       <p className="lead">
-        先选择数值区间或自定义集合。选定之后可以填写备注，再打乱整个集合，或指定抽取个数并限制每个元素最多出现的次数。
+        先选择数值区间或自定义集合。数值区间按整数生成。自定义集合逐项加入元素名和权重，列表里可以修改或删除。然后可以填写备注，再打乱集合，或指定抽取个数并限制每个元素最多出现的次数。
       </p>
 
       <div className="mode-choices" role="group" aria-label="集合来源">
@@ -156,15 +208,64 @@ export function CollectionsPage() {
       ) : null}
 
       {source === "custom" ? (
-        <label className="field note-row" htmlFor="collection-custom">
-          数值
-          <textarea
-            id="collection-custom"
-            value={custom}
-            placeholder="用空格、逗号或换行分开，例如 3、8、12"
-            onChange={(event) => setCustom(event.target.value)}
-          />
-        </label>
+        <div className="collection-editor">
+          <div className="collection-editor-head">
+            <span>元素名</span>
+            <span>权重</span>
+          </div>
+          {customItems.length > 0 ? (
+            <ul className="collection-editor-list">
+              {customItems.map((item) => (
+                <li key={item.id} className="collection-editor-row">
+                  <input
+                    aria-label="元素名"
+                    value={item.name}
+                    onChange={(event) => updateCustomItem(item.id, { name: event.target.value })}
+                  />
+                  <input
+                    aria-label="权重"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="any"
+                    value={item.weight}
+                    onChange={(event) => updateCustomItem(item.id, { weight: event.target.value })}
+                  />
+                  <button className="button button-secondary" type="button" onClick={() => removeCustomItem(item.id)}>
+                    删除
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <form
+            className="collection-editor-row"
+            onSubmit={(event) => {
+              event.preventDefault()
+              addItem()
+            }}
+          >
+            <input
+              id="collection-item-name"
+              aria-label="元素名"
+              value={itemName}
+              onChange={(event) => setItemName(event.target.value)}
+            />
+            <input
+              id="collection-item-weight"
+              aria-label="权重"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="any"
+              value={itemWeight}
+              onChange={(event) => setItemWeight(event.target.value)}
+            />
+            <button className="button" type="submit">
+              加入
+            </button>
+          </form>
+        </div>
       ) : null}
 
       {source !== "" ? (

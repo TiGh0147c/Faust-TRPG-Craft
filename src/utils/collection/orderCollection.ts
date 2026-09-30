@@ -16,22 +16,25 @@ export function collectionFromRange(
   return { ok: true, values: Array.from({ length: size }, (_, index) => start.value + index) }
 }
 
-export function collectionFromCustom(input: string): { ok: true; values: number[] } | { ok: false; message: string } {
-  const parts = input
-    .split(/[\s,，、]+/)
-    .map((part) => part.trim())
-    .filter((part) => part !== "")
-  if (parts.length === 0) return { ok: false, message: "请输入数值。" }
-  if (parts.length > MAX_COLLECTION_SIZE) return { ok: false, message: "元素太多，无法生成。" }
-  const values: number[] = []
-  for (const part of parts) {
-    if (!/^-?\d+$/.test(part)) return { ok: false, message: "请输入整数。" }
-    const value = Number(part)
-    if (!Number.isSafeInteger(value)) return { ok: false, message: "请输入整数。" }
-    if (values.includes(value)) return { ok: false, message: "集合里有重复的数值。" }
-    values.push(value)
+export type NamedCollectionItem = {
+  name: string
+  weight: number
+}
+
+export function readNamedItems(
+  rows: readonly { name: string; weight: string }[],
+): { ok: true; items: NamedCollectionItem[] } | { ok: false; message: string } {
+  if (rows.length === 0) return { ok: false, message: "请至少加入一项。" }
+  if (rows.length > MAX_COLLECTION_SIZE) return { ok: false, message: "元素太多，无法生成。" }
+  const items: NamedCollectionItem[] = []
+  for (const row of rows) {
+    const name = row.name.trim()
+    if (name === "") return { ok: false, message: "请输入元素名。" }
+    const weight = readWeight(row.weight)
+    if (!weight.ok) return weight
+    items.push({ name, weight: weight.value })
   }
-  return { ok: true, values }
+  return { ok: true, items }
 }
 
 export function shuffleItems<T>(items: readonly T[], random: RandomSource = Math.random): T[] {
@@ -129,17 +132,22 @@ export function drawLimited(
   random: RandomSource = Math.random,
 ): { ok: true; values: number[] } | { ok: false; message: string } {
   if (values.length === 0) return { ok: false, message: "集合是空的。" }
-  const count = readInteger(countText, "请输入抽取个数。", "抽取个数需要是整数。")
-  if (!count.ok) return count
-  const limit = readInteger(limitText, "请输入每项最多抽取次数。", "每项最多抽取次数需要是整数。")
-  if (!limit.ok) return limit
-  if (count.value < 1) return { ok: false, message: "抽取个数至少为 1。" }
-  if (limit.value < 1) return { ok: false, message: "每项最多抽取次数至少为 1。" }
-  if (count.value > values.length * limit.value) {
-    return { ok: false, message: "抽取个数超过了每个元素允许出现的次数。" }
-  }
-  if (count.value > MAX_COLLECTION_SIZE) return { ok: false, message: "抽取个数太大。" }
-  return { ok: true, values: drawWithCap(values, count.value, limit.value, random) }
+  const request = readDrawRequest(countText, limitText, values.length)
+  if (!request.ok) return request
+  return { ok: true, values: drawWithCap(values, request.count, request.limit, random) }
+}
+
+export function drawWeightedLimited<T>(
+  items: readonly T[],
+  weights: readonly number[],
+  countText: string,
+  limitText: string,
+  random: RandomSource = Math.random,
+): { ok: true; values: T[] } | { ok: false; message: string } {
+  if (items.length === 0) return { ok: false, message: "集合是空的。" }
+  const request = readDrawRequest(countText, limitText, items.length)
+  if (!request.ok) return request
+  return drawByWeight(items, weights, request.count, request.limit, random)
 }
 
 function weightsEqual(weights: readonly number[]): boolean {
@@ -155,6 +163,32 @@ function pickWeighted(weights: readonly number[], random: RandomSource): number 
     if (cursor < 0) return index
   }
   return Math.max(0, weights.length - 1)
+}
+
+function readWeight(input: string): { ok: true; value: number } | { ok: false; message: string } {
+  const trimmed = input.trim()
+  if (trimmed === "") return { ok: false, message: "请输入权重。" }
+  const value = Number(trimmed)
+  if (!Number.isFinite(value) || value <= 0) return { ok: false, message: "权重必须大于 0。" }
+  return { ok: true, value }
+}
+
+function readDrawRequest(
+  countText: string,
+  limitText: string,
+  size: number,
+): { ok: true; count: number; limit: number } | { ok: false; message: string } {
+  const count = readInteger(countText, "请输入抽取个数。", "抽取个数需要是整数。")
+  if (!count.ok) return count
+  const limit = readInteger(limitText, "请输入每项最多抽取次数。", "每项最多抽取次数需要是整数。")
+  if (!limit.ok) return limit
+  if (count.value < 1) return { ok: false, message: "抽取个数至少为 1。" }
+  if (limit.value < 1) return { ok: false, message: "每项最多抽取次数至少为 1。" }
+  if (count.value > size * limit.value) {
+    return { ok: false, message: "抽取个数超过了每个元素允许出现的次数。" }
+  }
+  if (count.value > MAX_COLLECTION_SIZE) return { ok: false, message: "抽取个数太大。" }
+  return { ok: true, count: count.value, limit: limit.value }
 }
 
 function readInteger(

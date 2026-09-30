@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { RandomSource } from "../random.ts"
-import { collectionFromCustom, collectionFromRange, drawLimited, readOrderCount, shuffleValues } from "./orderCollection.ts"
+import { collectionFromRange, drawLimited, readNamedItems, readOrderCount, shuffleValues } from "./orderCollection.ts"
 
 function sequence(values: number[]): RandomSource {
   let index = 0
@@ -12,11 +12,24 @@ function sequence(values: number[]): RandomSource {
 }
 
 describe("collections", () => {
-  it("builds an inclusive range and a unique custom set", () => {
+  it("builds an inclusive range and named items with weights", () => {
     expect(collectionFromRange("1", "5")).toEqual({ ok: true, values: [1, 2, 3, 4, 5] })
     expect(collectionFromRange("3", "1")).toMatchObject({ ok: false, message: "起始不能大于结束。" })
-    expect(collectionFromCustom("2, 2")).toMatchObject({ ok: false, message: "集合里有重复的数值。" })
-    expect(collectionFromCustom("10 4\n7")).toEqual({ ok: true, values: [10, 4, 7] })
+    expect(readNamedItems([])).toMatchObject({ ok: false, message: "请至少加入一项。" })
+    expect(readNamedItems([{ name: "  ", weight: "1" }])).toMatchObject({ ok: false, message: "请输入元素名。" })
+    expect(readNamedItems([{ name: "剑", weight: "0" }])).toMatchObject({ ok: false, message: "权重必须大于 0。" })
+    expect(
+      readNamedItems([
+        { name: " 剑 ", weight: "2" },
+        { name: "盾", weight: "1" },
+      ]),
+    ).toEqual({
+      ok: true,
+      items: [
+        { name: "剑", weight: 2 },
+        { name: "盾", weight: 1 },
+      ],
+    })
   })
 
   it("shuffles every element once and caps repeated draws", () => {

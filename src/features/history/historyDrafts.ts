@@ -111,7 +111,7 @@ export function entryHistoryDraft(entry: Entry, note = ""): HistoryDraft {
   )
 }
 
-export function collectionHistoryDraft(input: string, values: readonly number[], note = ""): HistoryDraft {
+export function collectionHistoryDraft(input: string, values: readonly (string | number)[], note = ""): HistoryDraft {
   return attachNote(
     {
       kind: "collection",
